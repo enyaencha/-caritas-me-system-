@@ -171,7 +171,7 @@ const DataEntry = () => {
         }));
     };
 
-    const handleBeneficiarySubmit = async (e, saveAsDraft = false) => {
+    const handleBeneficiarySubmit = async (e, saveAsDraft = false, submitForApproval = false) => {
         e.preventDefault();
         setLoading(true);
         setError('');
@@ -180,7 +180,7 @@ const DataEntry = () => {
         try {
             const submitData = {
                 ...beneficiaryForm,
-                status: saveAsDraft ? 'Draft' : 'Active'
+                status: saveAsDraft ? 'Draft' : submitForApproval ? 'Pending Approval' : 'Active'
             };
             const response = await beneficiaryAPI.create(submitData);
 
@@ -194,7 +194,12 @@ const DataEntry = () => {
                     await beneficiaryAPI.uploadPhoto(beneficiaryId, photoFormData);
                 }
 
-                setSuccess(saveAsDraft ? 'Beneficiary saved as draft!' : 'Beneficiary registered successfully!');
+                if (submitForApproval) {
+                    setSuccess('Beneficiary submitted for approval!');
+                } else {
+                    setSuccess(saveAsDraft ? 'Beneficiary saved as draft!' : 'Beneficiary registered successfully!');
+                }
+
                 setTimeout(() => {
                     navigate('/beneficiaries');
                 }, 1500);
@@ -207,8 +212,26 @@ const DataEntry = () => {
         }
     };
 
-    const handleActivitySubmit = async (e, saveAsDraft = false) => {
-        e.preventDefault();
+    // Activity tab navigation
+    const activityTabs = ['basic', 'beneficiaries', 'details', 'budget', 'outcomes', 'attachments'];
+
+    const handleNextTab = () => {
+        const currentIndex = activityTabs.indexOf(activityTab);
+        if (currentIndex < activityTabs.length - 1) {
+            setActivityTab(activityTabs[currentIndex + 1]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handlePreviousTab = () => {
+        const currentIndex = activityTabs.indexOf(activityTab);
+        if (currentIndex > 0) {
+            setActivityTab(activityTabs[currentIndex - 1]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handleActivitySubmit = async (saveAsDraft = false, submitForApproval = false) => {
         setLoading(true);
         setError('');
         setSuccess('');
@@ -216,12 +239,17 @@ const DataEntry = () => {
         try {
             const submitData = {
                 ...activityForm,
-                status: saveAsDraft ? 'Draft' : activityForm.status
+                status: saveAsDraft ? 'Draft' : submitForApproval ? 'Pending Approval' : activityForm.status
             };
 
             // Submit activity
             console.log('Submitting activity:', submitData);
-            setSuccess(saveAsDraft ? 'Activity saved as draft!' : 'Activity submitted successfully!');
+
+            if (submitForApproval) {
+                setSuccess('Activity submitted for approval!');
+            } else {
+                setSuccess(saveAsDraft ? 'Activity saved as draft!' : 'Activity submitted successfully!');
+            }
 
             setTimeout(() => {
                 navigate('/activities');
@@ -672,13 +700,18 @@ const DataEntry = () => {
                                     <button
                                         type="button"
                                         className="btn btn-secondary"
-                                        onClick={(e) => handleBeneficiarySubmit(e, true)}
+                                        onClick={(e) => handleBeneficiarySubmit(e, true, false)}
                                         disabled={loading}
                                     >
                                         Save as Draft
                                     </button>
-                                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                                        {loading ? 'Registering...' : 'Register Beneficiary'}
+                                    <button
+                                        type="button"
+                                        className="btn btn-success"
+                                        onClick={(e) => handleBeneficiarySubmit(e, false, true)}
+                                        disabled={loading}
+                                    >
+                                        {loading ? 'Submitting...' : '✓ Submit for Approval'}
                                     </button>
                                 </div>
                             </form>
@@ -731,10 +764,10 @@ const DataEntry = () => {
                             <div className="form-card">
                                 <div className="alert alert-info" style={{ marginBottom: '20px' }}>
                                     <span>ℹ️</span>
-                                    <div>Complete all required fields marked with (*). You can save as draft and continue later.</div>
+                                    <div>Complete all required fields marked with (*). Navigate through tabs using Next/Previous buttons.</div>
                                 </div>
 
-                                <form onSubmit={(e) => handleActivitySubmit(e, false)}>
+                                <div>
                                     {/* Basic Information Tab */}
                                     {activityTab === 'basic' && (
                                         <div className="form-section">
@@ -1053,24 +1086,39 @@ const DataEntry = () => {
                                         </div>
                                     )}
 
-                                    {/* Action Buttons */}
+                                    {/* Navigation Buttons */}
                                     <div className="btn-group mobile-btn-group" style={{ marginTop: '30px' }}>
-                                        <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
-                                            Cancel
-                                        </button>
+                                        {activityTab !== 'basic' && (
+                                            <button type="button" className="btn btn-secondary" onClick={handlePreviousTab}>
+                                                ← Previous
+                                            </button>
+                                        )}
+
                                         <button
                                             type="button"
                                             className="btn btn-secondary"
-                                            onClick={(e) => handleActivitySubmit(e, true)}
+                                            onClick={() => handleActivitySubmit(true, false)}
                                             disabled={loading}
                                         >
                                             Save as Draft
                                         </button>
-                                        <button type="submit" className="btn btn-primary" disabled={loading}>
-                                            {loading ? 'Submitting...' : 'Submit Activity'}
-                                        </button>
+
+                                        {activityTab !== 'attachments' ? (
+                                            <button type="button" className="btn btn-primary" onClick={handleNextTab}>
+                                                Next →
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="btn btn-success"
+                                                onClick={() => handleActivitySubmit(false, true)}
+                                                disabled={loading}
+                                            >
+                                                {loading ? 'Submitting...' : '✓ Submit for Approval'}
+                                            </button>
+                                        )}
                                     </div>
-                                </form>
+                                </div>
                             </div>
                         </>
                     )}

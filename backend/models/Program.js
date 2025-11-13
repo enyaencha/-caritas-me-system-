@@ -54,7 +54,7 @@ const Program = sequelize.define('Program', {
         type: DataTypes.DATEONLY
     },
     status: {
-        type: DataTypes.ENUM('Planning', 'Active', 'Completed', 'On Hold', 'Cancelled'),
+        type: DataTypes.ENUM('Planning', 'Active', 'Completed', 'On Hold', 'Cancelled', 'Draft', 'Pending Approval', 'Rejected'),
         defaultValue: 'Planning'
     },
     target_beneficiaries: {

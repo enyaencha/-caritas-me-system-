@@ -10,6 +10,7 @@ import BeneficiaryDetails from './pages/BeneficiaryDetails';
 import ProgramList from './pages/ProgramList';
 import ProgramForm from './pages/ProgramForm';
 import ProgramDetails from './pages/ProgramDetails';
+import Approvals from './pages/Approvals';
 import './styles/App.css';
 
 // Protected Route Component
@@ -123,20 +124,22 @@ function App() {
                     }
                 />
 
+                {/* Approvals Page */}
+                <Route
+                    path="/approvals"
+                    element={
+                        <ProtectedRoute>
+                            <Approvals />
+                        </ProtectedRoute>
+                    }
+                />
+
                 {/* Placeholder routes for other pages */}
                 <Route
                     path="/activities"
                     element={
                         <ProtectedRoute>
                             <ComingSoon page="Activities" />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/approvals"
-                    element={
-                        <ProtectedRoute>
-                            <ComingSoon page="Approvals" />
                         </ProtectedRoute>
                     }
                 />

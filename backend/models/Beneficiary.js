@@ -70,7 +70,7 @@ const Beneficiary = sequelize.define('Beneficiary', {
         defaultValue: DataTypes.NOW
     },
     status: {
-        type: DataTypes.ENUM('Active', 'Inactive', 'Deceased', 'Relocated'),
+        type: DataTypes.ENUM('Active', 'Inactive', 'Deceased', 'Relocated', 'Draft', 'Pending Approval', 'Rejected'),
         defaultValue: 'Active'
     },
     photo: {
