@@ -12,7 +12,6 @@ import '../styles/App.css';
 const ProgramList = () => {
     const navigate = useNavigate();
     const [programs, setPrograms] = useState([]);
-    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -23,6 +22,7 @@ const ProgramList = () => {
     const [statusFilter, setStatusFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
     const [stats, setStats] = useState(null);
+    const [categories, setCategories] = useState([]);
 
     // Fetch programs
     const fetchPrograms = async () => {
@@ -33,7 +33,7 @@ const ProgramList = () => {
                 limit: 10,
                 search,
                 status: statusFilter,
-                category_id: categoryFilter
+                category: categoryFilter
             };
 
             const response = await programAPI.getAll(params);
@@ -92,37 +92,31 @@ const ProgramList = () => {
 
     // Handle delete
     const handleDelete = async (id, name) => {
-        if (window.confirm(`Are you sure you want to close the program "${name}"?`)) {
+        if (window.confirm(`Are you sure you want to cancel program "${name}"?`)) {
             try {
                 await programAPI.delete(id);
                 fetchPrograms();
                 fetchStats();
             } catch (err) {
-                alert('Failed to close program');
-                console.error('Error deleting program:', err);
+                alert('Failed to cancel program');
+                console.error('Error cancelling program:', err);
             }
         }
     };
 
-    // Format currency
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-KE', {
-            style: 'currency',
-            currency: 'KES'
-        }).format(amount || 0);
+    // Calculate budget utilization percentage
+    const getBudgetPercentage = (program) => {
+        if (!program.total_budget || program.total_budget === 0) return 0;
+        return ((program.budget_utilized / program.total_budget) * 100).toFixed(1);
     };
 
-    // Calculate days remaining
-    const getDaysRemaining = (endDate) => {
-        if (!endDate) return 'Ongoing';
-        const today = new Date();
-        const end = new Date(endDate);
-        const diffTime = end - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays < 0) return 'Ended';
-        if (diffDays === 0) return 'Ends Today';
-        return `${diffDays} days left`;
+    // Format currency
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0
+        }).format(amount || 0);
     };
 
     return (
@@ -135,7 +129,7 @@ const ProgramList = () => {
                     <div className="page-header">
                         <div>
                             <h1>Programs</h1>
-                            <p>Manage and monitor all programs</p>
+                            <p>Manage and view all programs</p>
                         </div>
                         <button
                             className="btn btn-primary"
@@ -149,7 +143,7 @@ const ProgramList = () => {
                     {stats && (
                         <div className="stats-grid" style={{ marginBottom: '20px' }}>
                             <div className="stat-card">
-                                <div className="stat-icon" style={{ background: '#3498db' }}>📊</div>
+                                <div className="stat-icon" style={{ background: '#3498db' }}>📋</div>
                                 <div className="stat-details">
                                     <div className="stat-label">Total Programs</div>
                                     <div className="stat-value">{stats.total}</div>
@@ -158,12 +152,12 @@ const ProgramList = () => {
                             <div className="stat-card">
                                 <div className="stat-icon" style={{ background: '#2ecc71' }}>✓</div>
                                 <div className="stat-details">
-                                    <div className="stat-label">Active Programs</div>
+                                    <div className="stat-label">Active</div>
                                     <div className="stat-value">{stats.active}</div>
                                 </div>
                             </div>
                             <div className="stat-card">
-                                <div className="stat-icon" style={{ background: '#f39c12' }}>📋</div>
+                                <div className="stat-icon" style={{ background: '#f39c12' }}>⏳</div>
                                 <div className="stat-details">
                                     <div className="stat-label">Planning</div>
                                     <div className="stat-value">{stats.planning}</div>
@@ -173,9 +167,7 @@ const ProgramList = () => {
                                 <div className="stat-icon" style={{ background: '#9b59b6' }}>💰</div>
                                 <div className="stat-details">
                                     <div className="stat-label">Total Budget</div>
-                                    <div className="stat-value" style={{ fontSize: '18px' }}>
-                                        {formatCurrency(stats.total_budget)}
-                                    </div>
+                                    <div className="stat-value">{formatCurrency(stats.totalBudget)}</div>
                                 </div>
                             </div>
                         </div>
@@ -188,7 +180,7 @@ const ProgramList = () => {
                                 <input
                                     type="text"
                                     className="form-control"
-                                    placeholder="Search by name, code, or funding source..."
+                                    placeholder="Search by name, code, or location..."
                                     value={search}
                                     onChange={handleSearch}
                                 />
@@ -203,8 +195,8 @@ const ProgramList = () => {
                                     <option value="Planning">Planning</option>
                                     <option value="Active">Active</option>
                                     <option value="Completed">Completed</option>
-                                    <option value="Suspended">Suspended</option>
-                                    <option value="Closed">Closed</option>
+                                    <option value="On Hold">On Hold</option>
+                                    <option value="Cancelled">Cancelled</option>
                                 </select>
                             </div>
                             <div>
@@ -214,7 +206,7 @@ const ProgramList = () => {
                                     onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
                                 >
                                     <option value="">All Categories</option>
-                                    {categories.map((cat) => (
+                                    {categories.map(cat => (
                                         <option key={cat.category_id} value={cat.category_id}>
                                             {cat.category_name}
                                         </option>
@@ -251,7 +243,7 @@ const ProgramList = () => {
                             </div>
                         ) : programs.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '10px' }}>📂</div>
+                                <div style={{ fontSize: '48px', marginBottom: '10px' }}>📋</div>
                                 <p>No programs found</p>
                                 <button
                                     className="btn btn-primary"
@@ -268,11 +260,11 @@ const ProgramList = () => {
                                         <tr>
                                             <th>Code</th>
                                             <th>Program Name</th>
-                                            <th>Duration</th>
+                                            <th>Category</th>
                                             <th>Budget</th>
-                                            <th>Funding Source</th>
+                                            <th>Utilization</th>
+                                            <th>Duration</th>
                                             <th>Status</th>
-                                            <th>Time Remaining</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
@@ -281,12 +273,56 @@ const ProgramList = () => {
                                             <tr key={program.program_id}>
                                                 <td><strong>{program.program_code}</strong></td>
                                                 <td>
-                                                    <div style={{ fontWeight: '500' }}>{program.program_name}</div>
-                                                    {program.description && (
-                                                        <small style={{ color: '#7f8c8d' }}>
-                                                            {program.description.substring(0, 50)}...
-                                                        </small>
+                                                    <div style={{ fontWeight: '600' }}>{program.program_name}</div>
+                                                    <small style={{ color: '#7f8c8d' }}>
+                                                        {program.location || 'N/A'}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    {program.category && (
+                                                        <span
+                                                            style={{
+                                                                display: 'inline-block',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                backgroundColor: program.category.color_code + '20',
+                                                                color: program.category.color_code,
+                                                                fontSize: '12px',
+                                                                fontWeight: '600'
+                                                            }}
+                                                        >
+                                                            {program.category.category_name}
+                                                        </span>
                                                     )}
+                                                </td>
+                                                <td>
+                                                    <div style={{ fontWeight: '600' }}>
+                                                        {formatCurrency(program.total_budget)}
+                                                    </div>
+                                                    <small style={{ color: '#7f8c8d' }}>
+                                                        Spent: {formatCurrency(program.budget_utilized)}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <div style={{ width: '100px' }}>
+                                                        <div style={{
+                                                            width: '100%',
+                                                            backgroundColor: '#ecf0f1',
+                                                            borderRadius: '4px',
+                                                            height: '8px',
+                                                            overflow: 'hidden'
+                                                        }}>
+                                                            <div style={{
+                                                                width: `${Math.min(getBudgetPercentage(program), 100)}%`,
+                                                                backgroundColor: getBudgetPercentage(program) > 90 ? '#e74c3c' :
+                                                                    getBudgetPercentage(program) > 75 ? '#f39c12' : '#2ecc71',
+                                                                height: '100%'
+                                                            }}></div>
+                                                        </div>
+                                                        <small style={{ fontSize: '11px', color: '#7f8c8d' }}>
+                                                            {getBudgetPercentage(program)}%
+                                                        </small>
+                                                    </div>
                                                 </td>
                                                 <td>
                                                     <div>{new Date(program.start_date).toLocaleDateString()}</div>
@@ -294,20 +330,16 @@ const ProgramList = () => {
                                                         to {program.end_date ? new Date(program.end_date).toLocaleDateString() : 'Ongoing'}
                                                     </small>
                                                 </td>
-                                                <td>{formatCurrency(program.budget)}</td>
-                                                <td>{program.funding_source || 'N/A'}</td>
                                                 <td>
                                                     <span className={`badge ${
                                                         program.status === 'Active' ? 'badge-success' :
-                                                        program.status === 'Planning' ? 'badge-warning' :
-                                                        program.status === 'Completed' ? 'badge-info' :
+                                                        program.status === 'Planning' ? 'badge-info' :
+                                                        program.status === 'Completed' ? 'badge-secondary' :
+                                                        program.status === 'On Hold' ? 'badge-warning' :
                                                         'badge-danger'
                                                     }`}>
                                                         {program.status}
                                                     </span>
-                                                </td>
-                                                <td>
-                                                    <small>{getDaysRemaining(program.end_date)}</small>
                                                 </td>
                                                 <td>
                                                     <div style={{ display: 'flex', gap: '5px' }}>
@@ -328,7 +360,7 @@ const ProgramList = () => {
                                                         <button
                                                             className="btn btn-sm btn-danger"
                                                             onClick={() => handleDelete(program.program_id, program.program_name)}
-                                                            title="Close"
+                                                            title="Cancel Program"
                                                         >
                                                             🗑️
                                                         </button>

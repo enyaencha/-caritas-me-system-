@@ -13,34 +13,17 @@ const ProgramDetails = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const [program, setProgram] = useState(null);
-    const [indicators, setIndicators] = useState([]);
-    const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [showAddIndicator, setShowAddIndicator] = useState(false);
-    const [indicatorForm, setIndicatorForm] = useState({
-        indicator_code: '',
-        indicator_name: '',
-        indicator_type: 'Output',
-        measurement_unit: '',
-        baseline_value: '',
-        target_value: '',
-        data_source: '',
-        frequency: 'Monthly'
-    });
+    const [activeTab, setActiveTab] = useState('overview');
 
-    useEffect(() => {
-        fetchProgram();
-    }, [id]);
-
+    // Fetch program details
     const fetchProgram = async () => {
         try {
             setLoading(true);
             const response = await programAPI.getById(id);
             if (response.data.success) {
-                setProgram(response.data.data.program);
-                setIndicators(response.data.data.indicators || []);
-                setStats(response.data.data.stats || {});
+                setProgram(response.data.data);
             }
         } catch (err) {
             setError('Failed to load program details');
@@ -50,50 +33,41 @@ const ProgramDetails = () => {
         }
     };
 
-    const handleDelete = async () => {
-        if (window.confirm('Are you sure you want to close this program?')) {
-            try {
-                await programAPI.delete(id);
-                navigate('/programs');
-            } catch (err) {
-                alert('Failed to close program');
-                console.error('Error deleting program:', err);
-            }
-        }
+    useEffect(() => {
+        fetchProgram();
+    }, [id]);
+
+    // Calculate budget percentage
+    const getBudgetPercentage = () => {
+        if (!program || !program.total_budget || program.total_budget === 0) return 0;
+        return ((program.budget_utilized / program.total_budget) * 100).toFixed(1);
     };
 
-    const handleAddIndicator = async (e) => {
-        e.preventDefault();
-        try {
-            await programAPI.addIndicator(id, indicatorForm);
-            setShowAddIndicator(false);
-            setIndicatorForm({
-                indicator_code: '',
-                indicator_name: '',
-                indicator_type: 'Output',
-                measurement_unit: '',
-                baseline_value: '',
-                target_value: '',
-                data_source: '',
-                frequency: 'Monthly'
-            });
-            fetchProgram();
-        } catch (err) {
-            alert('Failed to add indicator');
-            console.error('Error adding indicator:', err);
-        }
+    // Calculate beneficiary achievement percentage
+    const getBeneficiaryPercentage = () => {
+        if (!program || !program.target_beneficiaries || program.target_beneficiaries === 0) return 0;
+        return ((program.actual_beneficiaries / program.target_beneficiaries) * 100).toFixed(1);
     };
 
+    // Format currency
     const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-KE', {
+        return new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: 'KES'
+            currency: 'USD',
+            minimumFractionDigits: 0
         }).format(amount || 0);
     };
 
-    const calculateProgress = (current, target) => {
-        if (!target || target === 0) return 0;
-        return Math.min(100, ((current / target) * 100).toFixed(1));
+    // Get indicator progress percentage
+    const getIndicatorProgress = (indicator) => {
+        if (!indicator.target_value || indicator.target_value === 0) return 0;
+        return ((indicator.current_value / indicator.target_value) * 100).toFixed(1);
+    };
+
+    // Group indicators by type
+    const getIndicatorsByType = (type) => {
+        if (!program || !program.indicators) return [];
+        return program.indicators.filter(ind => ind.indicator_type === type);
     };
 
     if (loading) {
@@ -123,11 +97,8 @@ const ProgramDetails = () => {
                         <div className="alert alert-danger">
                             {error || 'Program not found'}
                         </div>
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => navigate('/programs')}
-                        >
-                            ← Back to List
+                        <button className="btn btn-secondary" onClick={() => navigate('/programs')}>
+                            ← Back to Programs
                         </button>
                     </div>
                 </div>
@@ -144,270 +115,394 @@ const ProgramDetails = () => {
                     {/* Page Header */}
                     <div className="page-header">
                         <div>
-                            <h1>{program.program_name}</h1>
-                            <p style={{ color: '#7f8c8d' }}>{program.program_code}</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+                                <h1>{program.program_name}</h1>
+                                <span className={`badge ${
+                                    program.status === 'Active' ? 'badge-success' :
+                                    program.status === 'Planning' ? 'badge-info' :
+                                    program.status === 'Completed' ? 'badge-secondary' :
+                                    program.status === 'On Hold' ? 'badge-warning' :
+                                    'badge-danger'
+                                }`} style={{ fontSize: '14px', padding: '6px 12px' }}>
+                                    {program.status}
+                                </span>
+                            </div>
+                            <p><strong>Code:</strong> {program.program_code}</p>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => navigate(`/programs/edit/${id}`)}
+                            >
+                                ✏️ Edit Program
+                            </button>
                             <button
                                 className="btn btn-secondary"
                                 onClick={() => navigate('/programs')}
                             >
                                 ← Back
                             </button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={() => navigate(`/programs/edit/${id}`)}
-                            >
-                                ✏️ Edit
-                            </button>
-                            <button
-                                className="btn btn-danger"
-                                onClick={handleDelete}
-                            >
-                                🗑️ Close
-                            </button>
                         </div>
                     </div>
 
-                    {/* Status Badge */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <span className={`badge ${
-                            program.status === 'Active' ? 'badge-success' :
-                            program.status === 'Planning' ? 'badge-warning' :
-                            program.status === 'Completed' ? 'badge-info' :
-                            'badge-danger'
-                        }`} style={{ fontSize: '14px', padding: '8px 16px' }}>
-                            {program.status}
-                        </span>
-                    </div>
-
-                    {/* Key Statistics */}
+                    {/* Statistics Cards */}
                     <div className="stats-grid" style={{ marginBottom: '20px' }}>
                         <div className="stat-card">
-                            <div className="stat-icon" style={{ background: '#3498db' }}>📊</div>
+                            <div className="stat-icon" style={{ background: '#3498db' }}>💰</div>
                             <div className="stat-details">
-                                <div className="stat-label">Total Activities</div>
-                                <div className="stat-value">{stats?.total_activities || 0}</div>
+                                <div className="stat-label">Total Budget</div>
+                                <div className="stat-value">{formatCurrency(program.total_budget)}</div>
                             </div>
                         </div>
                         <div className="stat-card">
-                            <div className="stat-icon" style={{ background: '#2ecc71' }}>✓</div>
+                            <div className="stat-icon" style={{ background: '#e74c3c' }}>💸</div>
                             <div className="stat-details">
-                                <div className="stat-label">Completed</div>
-                                <div className="stat-value">{stats?.completed_activities || 0}</div>
+                                <div className="stat-label">Budget Utilized</div>
+                                <div className="stat-value">{formatCurrency(program.budget_utilized)}</div>
+                                <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                                    {getBudgetPercentage()}% of budget
+                                </div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ background: '#2ecc71' }}>💵</div>
+                            <div className="stat-details">
+                                <div className="stat-label">Budget Remaining</div>
+                                <div className="stat-value">{formatCurrency(program.budget_remaining)}</div>
                             </div>
                         </div>
                         <div className="stat-card">
                             <div className="stat-icon" style={{ background: '#9b59b6' }}>👥</div>
                             <div className="stat-details">
-                                <div className="stat-label">Beneficiaries Served</div>
-                                <div className="stat-value">{stats?.total_beneficiaries || 0}</div>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ background: '#e67e22' }}>💰</div>
-                            <div className="stat-details">
-                                <div className="stat-label">Budget Utilization</div>
-                                <div className="stat-value">{stats?.budget_utilization || 0}%</div>
+                                <div className="stat-label">Beneficiaries</div>
+                                <div className="stat-value">
+                                    {program.actual_beneficiaries} / {program.target_beneficiaries}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                                    {getBeneficiaryPercentage()}% reached
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Program Information */}
+                    {/* Tabs */}
                     <div className="card" style={{ marginBottom: '20px' }}>
-                        <h3>Program Information</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                            <div>
-                                <label style={{ fontWeight: 'bold', color: '#7f8c8d', fontSize: '12px' }}>Description</label>
-                                <p>{program.description || 'No description provided'}</p>
-                            </div>
-                            <div>
-                                <label style={{ fontWeight: 'bold', color: '#7f8c8d', fontSize: '12px' }}>Duration</label>
-                                <p>
-                                    {new Date(program.start_date).toLocaleDateString()} -
-                                    {program.end_date ? new Date(program.end_date).toLocaleDateString() : 'Ongoing'}
-                                </p>
-                            </div>
-                            <div>
-                                <label style={{ fontWeight: 'bold', color: '#7f8c8d', fontSize: '12px' }}>Total Budget</label>
-                                <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#2ecc71' }}>
-                                    {formatCurrency(program.budget)}
-                                </p>
-                            </div>
-                            <div>
-                                <label style={{ fontWeight: 'bold', color: '#7f8c8d', fontSize: '12px' }}>Spent</label>
-                                <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#e74c3c' }}>
-                                    {formatCurrency(stats?.total_spent)}
-                                </p>
-                            </div>
-                            <div>
-                                <label style={{ fontWeight: 'bold', color: '#7f8c8d', fontSize: '12px' }}>Funding Source</label>
-                                <p>{program.funding_source || 'Not specified'}</p>
-                            </div>
-                            <div>
-                                <label style={{ fontWeight: 'bold', color: '#7f8c8d', fontSize: '12px' }}>Created</label>
-                                <p>{new Date(program.created_at).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Program Indicators */}
-                    <div className="card">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                            <h3>Program Indicators</h3>
+                        <div style={{ display: 'flex', gap: '10px', borderBottom: '2px solid #ecf0f1' }}>
                             <button
-                                className="btn btn-primary btn-sm"
-                                onClick={() => setShowAddIndicator(!showAddIndicator)}
+                                className={activeTab === 'overview' ? 'tab-active' : 'tab-inactive'}
+                                onClick={() => setActiveTab('overview')}
+                                style={{
+                                    padding: '12px 24px',
+                                    border: 'none',
+                                    background: activeTab === 'overview' ? '#3498db' : 'transparent',
+                                    color: activeTab === 'overview' ? 'white' : '#7f8c8d',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    borderRadius: '4px 4px 0 0'
+                                }}
                             >
-                                {showAddIndicator ? 'Cancel' : '+ Add Indicator'}
+                                Overview
+                            </button>
+                            <button
+                                className={activeTab === 'indicators' ? 'tab-active' : 'tab-inactive'}
+                                onClick={() => setActiveTab('indicators')}
+                                style={{
+                                    padding: '12px 24px',
+                                    border: 'none',
+                                    background: activeTab === 'indicators' ? '#3498db' : 'transparent',
+                                    color: activeTab === 'indicators' ? 'white' : '#7f8c8d',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    borderRadius: '4px 4px 0 0'
+                                }}
+                            >
+                                Indicators ({program.indicators?.length || 0})
+                            </button>
+                            <button
+                                className={activeTab === 'budget' ? 'tab-active' : 'tab-inactive'}
+                                onClick={() => setActiveTab('budget')}
+                                style={{
+                                    padding: '12px 24px',
+                                    border: 'none',
+                                    background: activeTab === 'budget' ? '#3498db' : 'transparent',
+                                    color: activeTab === 'budget' ? 'white' : '#7f8c8d',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    borderRadius: '4px 4px 0 0'
+                                }}
+                            >
+                                Budget
                             </button>
                         </div>
+                    </div>
 
-                        {/* Add Indicator Form */}
-                        {showAddIndicator && (
-                            <form onSubmit={handleAddIndicator} style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '4px' }}>
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label>Indicator Code *</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            value={indicatorForm.indicator_code}
-                                            onChange={(e) => setIndicatorForm({...indicatorForm, indicator_code: e.target.value})}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Indicator Name *</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            value={indicatorForm.indicator_name}
-                                            onChange={(e) => setIndicatorForm({...indicatorForm, indicator_name: e.target.value})}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Type *</label>
-                                        <select
-                                            className="form-control"
-                                            value={indicatorForm.indicator_type}
-                                            onChange={(e) => setIndicatorForm({...indicatorForm, indicator_type: e.target.value})}
-                                        >
-                                            <option value="Input">Input</option>
-                                            <option value="Output">Output</option>
-                                            <option value="Outcome">Outcome</option>
-                                            <option value="Impact">Impact</option>
-                                        </select>
-                                    </div>
+                    {/* Tab Content */}
+                    {activeTab === 'overview' && (
+                        <div className="card">
+                            <h3 style={{ marginBottom: '20px' }}>Program Overview</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                                <div>
+                                    <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>CATEGORY</h4>
+                                    <span style={{
+                                        display: 'inline-block',
+                                        padding: '6px 12px',
+                                        borderRadius: '4px',
+                                        backgroundColor: program.category?.color_code + '20',
+                                        color: program.category?.color_code,
+                                        fontWeight: '600'
+                                    }}>
+                                        {program.category?.category_name || 'N/A'}
+                                    </span>
                                 </div>
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label>Measurement Unit</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            value={indicatorForm.measurement_unit}
-                                            onChange={(e) => setIndicatorForm({...indicatorForm, measurement_unit: e.target.value})}
-                                            placeholder="e.g., People, Meals, Sessions"
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Baseline Value</label>
-                                        <input
-                                            type="number"
-                                            className="form-control"
-                                            value={indicatorForm.baseline_value}
-                                            onChange={(e) => setIndicatorForm({...indicatorForm, baseline_value: e.target.value})}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Target Value *</label>
-                                        <input
-                                            type="number"
-                                            className="form-control"
-                                            value={indicatorForm.target_value}
-                                            onChange={(e) => setIndicatorForm({...indicatorForm, target_value: e.target.value})}
-                                            required
-                                        />
-                                    </div>
+                                <div>
+                                    <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>FUNDING SOURCE</h4>
+                                    <p style={{ fontWeight: '600' }}>{program.funding_source || 'N/A'}</p>
                                 </div>
-                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowAddIndicator(false)}>
-                                        Cancel
-                                    </button>
-                                    <button type="submit" className="btn btn-primary btn-sm">
-                                        Add Indicator
-                                    </button>
+                                <div>
+                                    <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>LOCATION</h4>
+                                    <p style={{ fontWeight: '600' }}>{program.location || 'N/A'}</p>
                                 </div>
-                            </form>
-                        )}
-
-                        {/* Indicators List */}
-                        {indicators.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '10px' }}>📈</div>
-                                <p>No indicators added yet</p>
+                                <div>
+                                    <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>PROGRAM MANAGER</h4>
+                                    <p style={{ fontWeight: '600' }}>{program.program_manager || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>START DATE</h4>
+                                    <p style={{ fontWeight: '600' }}>{new Date(program.start_date).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                    <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>END DATE</h4>
+                                    <p style={{ fontWeight: '600' }}>
+                                        {program.end_date ? new Date(program.end_date).toLocaleDateString() : 'Ongoing'}
+                                    </p>
+                                </div>
                             </div>
-                        ) : (
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Code</th>
-                                        <th>Indicator Name</th>
-                                        <th>Type</th>
-                                        <th>Baseline</th>
-                                        <th>Target</th>
-                                        <th>Current</th>
-                                        <th>Progress</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {indicators.map((indicator) => {
-                                        const progress = calculateProgress(indicator.current_value, indicator.target_value);
-                                        return (
-                                            <tr key={indicator.indicator_id}>
-                                                <td><strong>{indicator.indicator_code}</strong></td>
-                                                <td>{indicator.indicator_name}</td>
-                                                <td>
-                                                    <span className={`badge ${
-                                                        indicator.indicator_type === 'Input' ? 'badge-secondary' :
-                                                        indicator.indicator_type === 'Output' ? 'badge-primary' :
-                                                        indicator.indicator_type === 'Outcome' ? 'badge-success' :
-                                                        'badge-info'
-                                                    }`}>
-                                                        {indicator.indicator_type}
-                                                    </span>
-                                                </td>
-                                                <td>{indicator.baseline_value || 0} {indicator.measurement_unit}</td>
-                                                <td>{indicator.target_value} {indicator.measurement_unit}</td>
-                                                <td>{indicator.current_value || 0} {indicator.measurement_unit}</td>
-                                                <td>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+                            {program.description && (
+                                <>
+                                    <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #ecf0f1' }} />
+                                    <div>
+                                        <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>DESCRIPTION</h4>
+                                        <p>{program.description}</p>
+                                    </div>
+                                </>
+                            )}
+
+                            {program.notes && (
+                                <>
+                                    <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #ecf0f1' }} />
+                                    <div>
+                                        <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>NOTES</h4>
+                                        <p>{program.notes}</p>
+                                    </div>
+                                </>
+                            )}
+
+                            <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #ecf0f1' }} />
+                            <div>
+                                <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '10px' }}>CONTACT</h4>
+                                <p>
+                                    <strong>Email:</strong> {program.contact_email || 'N/A'}<br />
+                                    <strong>Phone:</strong> {program.contact_phone || 'N/A'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'indicators' && (
+                        <div>
+                            {['Input', 'Output', 'Outcome', 'Impact'].map(type => {
+                                const indicators = getIndicatorsByType(type);
+                                if (indicators.length === 0) return null;
+
+                                return (
+                                    <div key={type} className="card" style={{ marginBottom: '20px' }}>
+                                        <h3 style={{
+                                            marginBottom: '20px',
+                                            color: type === 'Input' ? '#3498db' :
+                                                  type === 'Output' ? '#2ecc71' :
+                                                  type === 'Outcome' ? '#f39c12' : '#9b59b6'
+                                        }}>
+                                            {type} Indicators ({indicators.length})
+                                        </h3>
+                                        <div style={{ display: 'grid', gap: '15px' }}>
+                                            {indicators.map(indicator => (
+                                                <div
+                                                    key={indicator.indicator_id}
+                                                    style={{
+                                                        padding: '15px',
+                                                        border: '1px solid #ecf0f1',
+                                                        borderRadius: '8px',
+                                                        background: '#f8f9fa'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                                                        <div style={{ flex: 1 }}>
+                                                            <h4 style={{ marginBottom: '5px' }}>{indicator.indicator_name}</h4>
+                                                            {indicator.description && (
+                                                                <p style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '10px' }}>
+                                                                    {indicator.description}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <span className={`badge ${
+                                                            indicator.status === 'On Track' ? 'badge-success' :
+                                                            indicator.status === 'Behind' ? 'badge-warning' :
+                                                            indicator.status === 'At Risk' ? 'badge-danger' :
+                                                            'badge-info'
+                                                        }`}>
+                                                            {indicator.status}
+                                                        </span>
+                                                    </div>
+
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '15px' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Baseline</div>
+                                                            <div style={{ fontWeight: '600' }}>
+                                                                {indicator.baseline_value} {indicator.unit_of_measure}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Current</div>
+                                                            <div style={{ fontWeight: '600', color: '#2ecc71' }}>
+                                                                {indicator.current_value} {indicator.unit_of_measure}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Target</div>
+                                                            <div style={{ fontWeight: '600', color: '#3498db' }}>
+                                                                {indicator.target_value} {indicator.unit_of_measure}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>Collection Frequency</div>
+                                                            <div style={{ fontWeight: '600' }}>{indicator.collection_frequency}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Progress Bar */}
+                                                    <div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                                            <span style={{ fontSize: '12px', color: '#7f8c8d' }}>Progress</span>
+                                                            <span style={{ fontSize: '12px', fontWeight: '600' }}>
+                                                                {getIndicatorProgress(indicator)}%
+                                                            </span>
+                                                        </div>
                                                         <div style={{
-                                                            flex: 1,
-                                                            height: '20px',
-                                                            background: '#ecf0f1',
-                                                            borderRadius: '10px',
+                                                            width: '100%',
+                                                            backgroundColor: '#ecf0f1',
+                                                            borderRadius: '8px',
+                                                            height: '12px',
                                                             overflow: 'hidden'
                                                         }}>
                                                             <div style={{
-                                                                width: `${progress}%`,
+                                                                width: `${Math.min(getIndicatorProgress(indicator), 100)}%`,
+                                                                backgroundColor:
+                                                                    indicator.status === 'On Track' ? '#2ecc71' :
+                                                                    indicator.status === 'Behind' ? '#f39c12' :
+                                                                    indicator.status === 'At Risk' ? '#e74c3c' : '#3498db',
                                                                 height: '100%',
-                                                                background: progress >= 75 ? '#2ecc71' : progress >= 50 ? '#f39c12' : '#e74c3c',
-                                                                transition: 'width 0.3s'
+                                                                transition: 'width 0.3s ease'
                                                             }}></div>
                                                         </div>
-                                                        <span style={{ minWidth: '50px', textAlign: 'right' }}>{progress}%</span>
                                                     </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {(!program.indicators || program.indicators.length === 0) && (
+                                <div className="card">
+                                    <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '10px' }}>📊</div>
+                                        <p>No indicators added yet</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'budget' && (
+                        <div className="card">
+                            <h3 style={{ marginBottom: '20px' }}>Budget Overview</h3>
+
+                            {/* Budget Progress */}
+                            <div style={{ marginBottom: '30px' }}>
+                                <h4 style={{ color: '#7f8c8d', fontSize: '14px', marginBottom: '15px' }}>BUDGET UTILIZATION</h4>
+                                <div style={{
+                                    width: '100%',
+                                    backgroundColor: '#ecf0f1',
+                                    borderRadius: '12px',
+                                    height: '40px',
+                                    overflow: 'hidden',
+                                    position: 'relative'
+                                }}>
+                                    <div style={{
+                                        width: `${Math.min(getBudgetPercentage(), 100)}%`,
+                                        backgroundColor:
+                                            getBudgetPercentage() > 90 ? '#e74c3c' :
+                                            getBudgetPercentage() > 75 ? '#f39c12' : '#2ecc71',
+                                        height: '100%',
+                                        transition: 'width 0.3s ease',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white',
+                                        fontWeight: '600'
+                                    }}>
+                                        {getBudgetPercentage()}%
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Budget Breakdown */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                                <div style={{
+                                    padding: '20px',
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    borderRadius: '12px',
+                                    color: 'white'
+                                }}>
+                                    <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '10px' }}>Total Budget</div>
+                                    <div style={{ fontSize: '32px', fontWeight: '700' }}>
+                                        {formatCurrency(program.total_budget)}
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    padding: '20px',
+                                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                                    borderRadius: '12px',
+                                    color: 'white'
+                                }}>
+                                    <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '10px' }}>Budget Utilized</div>
+                                    <div style={{ fontSize: '32px', fontWeight: '700' }}>
+                                        {formatCurrency(program.budget_utilized)}
+                                    </div>
+                                    <div style={{ fontSize: '14px', opacity: 0.9, marginTop: '5px' }}>
+                                        {getBudgetPercentage()}% of total
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    padding: '20px',
+                                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                                    borderRadius: '12px',
+                                    color: 'white'
+                                }}>
+                                    <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '10px' }}>Budget Remaining</div>
+                                    <div style={{ fontSize: '32px', fontWeight: '700' }}>
+                                        {formatCurrency(program.budget_remaining)}
+                                    </div>
+                                    <div style={{ fontSize: '14px', opacity: 0.9', marginTop: '5px' }}>
+                                        {(100 - getBudgetPercentage()).toFixed(1)}% remaining
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

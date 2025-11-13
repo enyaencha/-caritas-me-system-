@@ -12,7 +12,7 @@ const {
     updateProgram,
     deleteProgram,
     getProgramStats,
-    getCategories,
+    getAllCategories,
     createCategory,
     addIndicator,
     updateIndicator,
@@ -24,16 +24,18 @@ router.get('/stats/summary', protect, getProgramStats);
 
 // Category routes
 router.route('/categories')
-    .get(protect, getCategories)
+    .get(protect, getAllCategories)
     .post(protect, createCategory);
 
 // Indicator routes
-router.post('/:id/indicators', protect, addIndicator);
+router.route('/:id/indicators')
+    .post(protect, addIndicator);
+
 router.route('/indicators/:indicatorId')
     .put(protect, updateIndicator)
     .delete(protect, deleteIndicator);
 
-// CRUD routes for programs
+// CRUD routes
 router.route('/')
     .get(protect, getAllPrograms)
     .post(protect, createProgram);

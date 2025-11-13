@@ -20,12 +20,31 @@ const Program = sequelize.define('Program', {
         type: DataTypes.STRING(200),
         allowNull: false
     },
-    category_id: {
-        type: DataTypes.UUID,
-        allowNull: true
-    },
     description: {
         type: DataTypes.TEXT
+    },
+    category_id: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: {
+            model: 'program_categories',
+            key: 'category_id'
+        }
+    },
+    funding_source: {
+        type: DataTypes.STRING(200)
+    },
+    total_budget: {
+        type: DataTypes.DECIMAL(15, 2),
+        defaultValue: 0.00
+    },
+    budget_utilized: {
+        type: DataTypes.DECIMAL(15, 2),
+        defaultValue: 0.00
+    },
+    budget_remaining: {
+        type: DataTypes.DECIMAL(15, 2),
+        defaultValue: 0.00
     },
     start_date: {
         type: DataTypes.DATEONLY,
@@ -34,24 +53,49 @@ const Program = sequelize.define('Program', {
     end_date: {
         type: DataTypes.DATEONLY
     },
-    budget: {
-        type: DataTypes.DECIMAL(15, 2)
+    status: {
+        type: DataTypes.ENUM('Planning', 'Active', 'Completed', 'On Hold', 'Cancelled'),
+        defaultValue: 'Planning'
     },
-    funding_source: {
+    target_beneficiaries: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+    },
+    actual_beneficiaries: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+    },
+    location: {
         type: DataTypes.STRING(200)
     },
     program_manager: {
-        type: DataTypes.UUID
+        type: DataTypes.STRING(100)
     },
-    status: {
-        type: DataTypes.ENUM('Planning', 'Active', 'Completed', 'Suspended', 'Closed'),
-        defaultValue: 'Planning'
+    contact_email: {
+        type: DataTypes.STRING(100),
+        validate: {
+            isEmail: true
+        }
+    },
+    contact_phone: {
+        type: DataTypes.STRING(20)
+    },
+    notes: {
+        type: DataTypes.TEXT
     }
 }, {
     tableName: 'programs',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    hooks: {
+        beforeSave: (program) => {
+            // Calculate budget remaining
+            if (program.total_budget && program.budget_utilized) {
+                program.budget_remaining = parseFloat(program.total_budget) - parseFloat(program.budget_utilized);
+            }
+        }
+    }
 });
 
 module.exports = Program;

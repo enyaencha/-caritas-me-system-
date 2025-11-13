@@ -13,43 +13,62 @@ const ProgramIndicator = sequelize.define('ProgramIndicator', {
     },
     program_id: {
         type: DataTypes.UUID,
-        allowNull: false
-    },
-    indicator_code: {
-        type: DataTypes.STRING(50),
-        allowNull: false
+        allowNull: false,
+        references: {
+            model: 'programs',
+            key: 'program_id'
+        },
+        onDelete: 'CASCADE'
     },
     indicator_name: {
-        type: DataTypes.STRING(300),
+        type: DataTypes.STRING(200),
         allowNull: false
     },
     indicator_type: {
-        type: DataTypes.ENUM('Input', 'Output', 'Outcome', 'Impact')
+        type: DataTypes.ENUM('Input', 'Output', 'Outcome', 'Impact'),
+        allowNull: false
     },
-    measurement_unit: {
-        type: DataTypes.STRING(50)
+    description: {
+        type: DataTypes.TEXT
     },
-    baseline_value: {
-        type: DataTypes.DECIMAL(12, 2)
+    unit_of_measure: {
+        type: DataTypes.STRING(50),
+        allowNull: false
     },
     target_value: {
-        type: DataTypes.DECIMAL(12, 2)
+        type: DataTypes.DECIMAL(15, 2),
+        allowNull: false
     },
     current_value: {
-        type: DataTypes.DECIMAL(12, 2),
-        defaultValue: 0
+        type: DataTypes.DECIMAL(15, 2),
+        defaultValue: 0.00
+    },
+    baseline_value: {
+        type: DataTypes.DECIMAL(15, 2),
+        defaultValue: 0.00
     },
     data_source: {
         type: DataTypes.STRING(200)
     },
-    frequency: {
-        type: DataTypes.STRING(50)
+    collection_frequency: {
+        type: DataTypes.ENUM('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually'),
+        defaultValue: 'Monthly'
+    },
+    responsible_person: {
+        type: DataTypes.STRING(100)
+    },
+    status: {
+        type: DataTypes.ENUM('On Track', 'Behind', 'At Risk', 'Achieved'),
+        defaultValue: 'On Track'
+    },
+    notes: {
+        type: DataTypes.TEXT
     }
 }, {
     tableName: 'program_indicators',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: false
+    updatedAt: 'updated_at'
 });
 
 module.exports = ProgramIndicator;
