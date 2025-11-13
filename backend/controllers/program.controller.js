@@ -124,6 +124,50 @@ exports.getProgramById = async (req, res) => {
             });
         }
 
+        // Get program indicators
+        const indicators = await ProgramIndicator.findAll({
+            where: { program_id: id },
+            order: [['indicator_type', 'ASC']]
+        });
+
+        // Get program statistics (activities, beneficiaries, budget utilization)
+        const [activityStats] = await sequelize.query(`
+            SELECT
+                COUNT(*) as total_activities,
+                COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed_activities,
+                COALESCE(SUM(actual_budget), 0) as total_spent
+            FROM activities
+            WHERE program_id = :programId
+        `, {
+            replacements: { programId: id },
+            type: sequelize.QueryTypes.SELECT
+        });
+
+        const [beneficiaryCount] = await sequelize.query(`
+            SELECT COUNT(DISTINCT ab.beneficiary_id) as total_beneficiaries
+            FROM activity_beneficiaries ab
+            JOIN activities a ON ab.activity_id = a.activity_id
+            WHERE a.program_id = :programId
+        `, {
+            replacements: { programId: id },
+            type: sequelize.QueryTypes.SELECT
+        });
+
+        res.json({
+            success: true,
+            data: {
+                program,
+                indicators,
+                stats: {
+                    total_activities: parseInt(activityStats.total_activities) || 0,
+                    completed_activities: parseInt(activityStats.completed_activities) || 0,
+                    total_beneficiaries: parseInt(beneficiaryCount.total_beneficiaries) || 0,
+                    total_spent: parseFloat(activityStats.total_spent) || 0,
+                    budget_utilization: program.budget > 0
+                        ? ((parseFloat(activityStats.total_spent) / parseFloat(program.budget)) * 100).toFixed(2)
+                        : 0
+                }
+            }
         res.json({
             success: true,
             data: program
@@ -149,6 +193,21 @@ exports.createProgram = async (req, res) => {
         const {
             program_code,
             program_name,
+            category_id,
+            description,
+            start_date,
+            end_date,
+            budget,
+            funding_source,
+            program_manager,
+            status
+        } = req.body;
+
+        // Validate required fields
+        if (!program_code || !program_name || !start_date) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide program code, name, and start date'
             description,
             category_id,
             funding_source,
@@ -313,6 +372,12 @@ exports.deleteProgram = async (req, res) => {
             });
         }
 
+        // Soft delete by setting status to Closed
+        await program.update({ status: 'Closed' });
+
+        res.json({
+            success: true,
+            message: 'Program closed successfully'
         // Soft delete by updating status
         await program.update({ status: 'Cancelled' });
 
@@ -343,6 +408,14 @@ exports.getProgramStats = async (req, res) => {
         const planning = await Program.count({ where: { status: 'Planning' } });
         const completed = await Program.count({ where: { status: 'Completed' } });
 
+        // Total budget across all programs
+        const [budgetStats] = await sequelize.query(`
+            SELECT
+                COALESCE(SUM(budget), 0) as total_budget,
+                COUNT(CASE WHEN status = 'Active' THEN 1 END) as active_programs
+            FROM programs
+        `, {
+            type: sequelize.QueryTypes.SELECT
         // Calculate total budget and spending
         const programs = await Program.findAll({
             attributes: ['total_budget', 'budget_utilized']
@@ -363,6 +436,7 @@ exports.getProgramStats = async (req, res) => {
                 active,
                 planning,
                 completed,
+                total_budget: parseFloat(budgetStats.total_budget) || 0
                 totalBudget,
                 totalSpent,
                 budgetRemaining: totalBudget - totalSpent
@@ -384,6 +458,7 @@ exports.getProgramStats = async (req, res) => {
  * @route   GET /api/v1/programs/categories
  * @access  Private
  */
+exports.getCategories = async (req, res) => {
 exports.getAllCategories = async (req, res) => {
     try {
         const categories = await ProgramCategory.findAll({
@@ -413,6 +488,12 @@ exports.getAllCategories = async (req, res) => {
  */
 exports.createCategory = async (req, res) => {
     try {
+        const { category_code, category_name, description, icon, color } = req.body;
+
+        if (!category_code || !category_name) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide category code and name'
         const { category_name, description, color_code } = req.body;
 
         if (!category_name) {
@@ -423,6 +504,11 @@ exports.createCategory = async (req, res) => {
         }
 
         const category = await ProgramCategory.create({
+            category_code,
+            category_name,
+            description,
+            icon,
+            color
             category_name,
             description,
             color_code: color_code || '#3B82F6'

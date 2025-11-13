@@ -22,6 +22,16 @@ const ProgramForm = () => {
     const [formData, setFormData] = useState({
         program_code: '',
         program_name: '',
+        category_id: '',
+        description: '',
+        start_date: '',
+        end_date: '',
+        budget: '',
+        funding_source: '',
+        program_manager: '',
+        status: 'Planning'
+    });
+
         description: '',
         category_id: '',
         funding_source: '',
@@ -49,6 +59,9 @@ const ProgramForm = () => {
         } else {
             generateProgramCode();
         }
+        fetchCategories();
+    }, [id]);
+
     }, [id]);
 
     const fetchCategories = async () => {
