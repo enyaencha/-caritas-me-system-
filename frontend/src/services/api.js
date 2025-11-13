@@ -100,6 +100,7 @@ export const programAPI = {
 
     // Category operations
     getCategories: () => api.get('/programs/categories'),
+    getCategoryStats: (params) => api.get('/programs/categories/stats', { params }),
     createCategory: (data) => api.post('/programs/categories', data),
 
     // Indicator operations

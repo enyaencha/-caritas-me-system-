@@ -448,6 +448,80 @@ exports.getAllCategories = async (req, res) => {
 };
 
 /**
+ * @desc    Get category statistics with program aggregates
+ * @route   GET /api/v1/programs/categories/stats
+ * @access  Private
+ */
+exports.getCategoryStats = async (req, res) => {
+    try {
+        const { status, year } = req.query;
+
+        // Build where clause for filtering programs
+        const programWhere = {};
+        if (status && status !== 'All Programs') {
+            programWhere.status = status;
+        }
+        if (year) {
+            programWhere.start_date = {
+                [Op.gte]: `${year}-01-01`,
+                [Op.lte]: `${year}-12-31`
+            };
+        }
+
+        // Get all active categories
+        const categories = await ProgramCategory.findAll({
+            where: { is_active: true },
+            order: [['category_name', 'ASC']],
+            include: [
+                {
+                    model: Program,
+                    as: 'programs',
+                    where: programWhere,
+                    required: false,
+                    attributes: ['program_id', 'total_budget', 'budget_utilized', 'target_beneficiaries', 'actual_beneficiaries', 'status']
+                }
+            ]
+        });
+
+        // Calculate stats for each category
+        const categoryStats = categories.map(category => {
+            const programs = category.programs || [];
+
+            const stats = {
+                category_id: category.category_id,
+                category_code: category.category_code,
+                category_name: category.category_name,
+                description: category.description,
+                icon: category.icon,
+                color: category.color,
+                total_programs: programs.length,
+                total_beneficiaries: programs.reduce((sum, p) => sum + (parseInt(p.actual_beneficiaries) || 0), 0),
+                target_beneficiaries: programs.reduce((sum, p) => sum + (parseInt(p.target_beneficiaries) || 0), 0),
+                total_budget: programs.reduce((sum, p) => sum + (parseFloat(p.total_budget) || 0), 0),
+                budget_utilized: programs.reduce((sum, p) => sum + (parseFloat(p.budget_utilized) || 0), 0),
+                active_programs: programs.filter(p => p.status === 'Active').length,
+                completed_programs: programs.filter(p => p.status === 'Completed').length
+            };
+
+            return stats;
+        });
+
+        res.json({
+            success: true,
+            data: categoryStats
+        });
+
+    } catch (error) {
+        console.error('Get category stats error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching category statistics',
+            error: error.message
+        });
+    }
+};
+
+/**
  * @desc    Create program category
  * @route   POST /api/v1/programs/categories
  * @access  Private (Admin only)

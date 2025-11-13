@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import CategoryManager from '../components/CategoryManager';
 import '../styles/App.css';
 
 const Settings = () => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('users');
     const [users, setUsers] = useState([]);
+    const [programs, setPrograms] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -44,9 +49,53 @@ const Settings = () => {
         }
     };
 
+    // Fetch programs
+    const fetchPrograms = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/v1/programs?limit=100', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setPrograms(data.data.programs);
+            }
+        } catch (error) {
+            console.error('Error fetching programs:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch categories
+    const fetchCategories = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/v1/programs/categories', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setCategories(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+        }
+    };
+
     useEffect(() => {
         if (activeTab === 'users') {
             fetchUsers();
+        } else if (activeTab === 'programs') {
+            fetchPrograms();
+            fetchCategories();
         }
     }, [activeTab, searchTerm, filterRole, filterStatus]);
 
@@ -101,6 +150,20 @@ const Settings = () => {
                                 }}
                             >
                                 👥 User Management
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('programs')}
+                                style={{
+                                    padding: '15px 25px',
+                                    border: 'none',
+                                    background: 'none',
+                                    cursor: 'pointer',
+                                    fontWeight: activeTab === 'programs' ? 'bold' : 'normal',
+                                    borderBottom: activeTab === 'programs' ? '3px solid #3498db' : 'none',
+                                    color: activeTab === 'programs' ? '#3498db' : '#7f8c8d'
+                                }}
+                            >
+                                📁 Manage Programs
                             </button>
                             <button
                                 onClick={() => setActiveTab('system')}
@@ -250,6 +313,123 @@ const Settings = () => {
                                         </table>
                                     )}
                                 </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Manage Programs Tab */}
+                    {activeTab === 'programs' && (
+                        <>
+                            <div className="card" style={{ marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                    <div>
+                                        <h3>📁 Program Management</h3>
+                                        <p style={{ color: '#7f8c8d', marginTop: '5px' }}>
+                                            Manage programs and categories
+                                        </p>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <CategoryManager
+                                            categories={categories}
+                                            onCategoryAdded={fetchCategories}
+                                        />
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={() => navigate('/programs/create')}
+                                        >
+                                            + Add New Program
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Programs List */}
+                            <div className="card">
+                                <h4 style={{ marginBottom: '15px' }}>All Programs</h4>
+                                {loading ? (
+                                    <div style={{ textAlign: 'center', padding: '40px' }}>
+                                        Loading programs...
+                                    </div>
+                                ) : (
+                                    <div className="table-wrapper">
+                                        <table className="data-table">
+                                            <thead>
+                                            <tr>
+                                                <th>Code</th>
+                                                <th>Program Name</th>
+                                                <th>Category</th>
+                                                <th>Status</th>
+                                                <th>Budget</th>
+                                                <th>Start Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {programs.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>
+                                                        No programs found. Click "Add New Program" to create one.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                programs.map(program => (
+                                                    <tr key={program.program_id}>
+                                                        <td style={{ fontWeight: 'bold' }}>{program.program_code}</td>
+                                                        <td>{program.program_name}</td>
+                                                        <td>
+                                                            {program.category && (
+                                                                <span style={{
+                                                                    padding: '4px 8px',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '12px',
+                                                                    backgroundColor: program.category.color + '20',
+                                                                    color: program.category.color,
+                                                                    fontWeight: '600'
+                                                                }}>
+                                                                    {program.category.category_name}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <span className={`status-badge status-${program.status.toLowerCase().replace(' ', '-')}`}>
+                                                                {program.status}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            {new Intl.NumberFormat('en-KE', {
+                                                                style: 'currency',
+                                                                currency: 'KES',
+                                                                minimumFractionDigits: 0
+                                                            }).format(program.total_budget || 0)}
+                                                        </td>
+                                                        <td>
+                                                            {program.start_date ? new Date(program.start_date).toLocaleDateString() : '-'}
+                                                        </td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', gap: '5px' }}>
+                                                                <button
+                                                                    className="btn btn-sm"
+                                                                    onClick={() => navigate(`/programs/${program.program_id}`)}
+                                                                    title="View Details"
+                                                                >
+                                                                    👁️
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-sm"
+                                                                    onClick={() => navigate(`/programs/edit/${program.program_id}`)}
+                                                                    title="Edit"
+                                                                >
+                                                                    ✏️
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}

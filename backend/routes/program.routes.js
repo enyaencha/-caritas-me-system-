@@ -13,6 +13,7 @@ const {
     deleteProgram,
     getProgramStats,
     getAllCategories,
+    getCategoryStats,
     createCategory,
     addIndicator,
     updateIndicator,
@@ -23,6 +24,7 @@ const {
 router.get('/stats/summary', protect, getProgramStats);
 
 // Category routes
+router.get('/categories/stats', protect, getCategoryStats);
 router.route('/categories')
     .get(protect, getAllCategories)
     .post(protect, authorize('Admin'), createCategory);
