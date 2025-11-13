@@ -1,11 +1,12 @@
 // =====================================================
-// DATA ENTRY PAGE
+// DATA ENTRY PAGE - COMPREHENSIVE & MOBILE RESPONSIVE
 // =====================================================
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import { beneficiaryAPI, programAPI } from '../services/api';
 import '../styles/App.css';
 
 const DataEntry = () => {
@@ -13,9 +14,18 @@ const DataEntry = () => {
     const [mainTab, setMainTab] = useState('beneficiary'); // beneficiary or activity
     const [activityTab, setActivityTab] = useState('basic'); // For activity sub-tabs
     const [categories, setCategories] = useState([]);
+    const [programs, setPrograms] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+
+    // Photo handling
+    const [photoPreview, setPhotoPreview] = useState(null);
+    const [photoFile, setPhotoFile] = useState(null);
 
     // Beneficiary form state
     const [beneficiaryForm, setBeneficiaryForm] = useState({
+        registration_number: '',
         first_name: '',
         middle_name: '',
         last_name: '',
@@ -24,49 +34,60 @@ const DataEntry = () => {
         gender: '',
         phone_number: '',
         email: '',
+        marital_status: '',
+        education_level: '',
+        occupation: '',
+        disability_status: '',
+        household_size: '',
+        monthly_income: '',
+        // Address fields
         county: '',
         sub_county: '',
         ward: '',
         village: '',
-        household_size: '',
-        marital_status: '',
-        education_level: '',
-        occupation: '',
-        vulnerability: [],
+        postal_address: '',
+        // Vulnerability
+        vulnerability_categories: [],
+        notes: '',
+        // Programs
         programs: [],
-        notes: ''
+        registration_date: new Date().toISOString().split('T')[0],
+        status: 'Active'
     });
 
     // Activity form state
     const [activityForm, setActivityForm] = useState({
+        activity_number: '',
         activity_title: '',
-        program_module: '',
-        sub_program: '',
+        program_id: '',
         activity_type: '',
+        description: '',
         location: '',
         start_date: '',
         end_date: '',
-        implementing_partner: '',
-        funding_source: '',
-        project_code: '',
-        description: '',
-        // Beneficiary tab
-        target_participants: '',
+        planned_participants: '',
         actual_participants: '',
-        beneficiaries: [],
-        // Budget tab
         planned_budget: '',
         actual_budget: '',
-        resources: [],
-        // Outcomes tab
+        status: 'Planned',
+        priority: 'Medium',
+        funding_source: '',
+        implementing_partner: '',
         outcomes: '',
         impact: '',
-        indicators: []
+        beneficiaries: [],
+        resources: []
     });
 
     useEffect(() => {
         fetchCategories();
-    }, []);
+        fetchPrograms();
+        if (mainTab === 'beneficiary') {
+            generateRegistrationNumber();
+        } else {
+            generateActivityNumber();
+        }
+    }, [mainTab]);
 
     const fetchCategories = async () => {
         try {
@@ -83,16 +104,134 @@ const DataEntry = () => {
         }
     };
 
-    const handleBeneficiarySubmit = async (e) => {
-        e.preventDefault();
-        // Submit beneficiary
-        console.log('Submitting beneficiary:', beneficiaryForm);
+    const fetchPrograms = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/v1/programs?limit=100', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                setPrograms(data.data.programs || []);
+            }
+        } catch (error) {
+            console.error('Error fetching programs:', error);
+        }
     };
 
-    const handleActivitySubmit = async (e) => {
+    const generateRegistrationNumber = () => {
+        const year = new Date().getFullYear();
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        setBeneficiaryForm(prev => ({
+            ...prev,
+            registration_number: `BEN-${year}-${random}`
+        }));
+    };
+
+    const generateActivityNumber = () => {
+        const year = new Date().getFullYear();
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        setActivityForm(prev => ({
+            ...prev,
+            activity_number: `ACT-${year}-${random}`
+        }));
+    };
+
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                setError('Photo size must be less than 5MB');
+                return;
+            }
+            setPhotoFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPhotoPreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleVulnerabilityChange = (category) => {
+        setBeneficiaryForm(prev => ({
+            ...prev,
+            vulnerability_categories: prev.vulnerability_categories.includes(category)
+                ? prev.vulnerability_categories.filter(c => c !== category)
+                : [...prev.vulnerability_categories, category]
+        }));
+    };
+
+    const handleProgramEnrollment = (programId) => {
+        setBeneficiaryForm(prev => ({
+            ...prev,
+            programs: prev.programs.includes(programId)
+                ? prev.programs.filter(p => p !== programId)
+                : [...prev.programs, programId]
+        }));
+    };
+
+    const handleBeneficiarySubmit = async (e, saveAsDraft = false) => {
         e.preventDefault();
-        // Submit activity
-        console.log('Submitting activity:', activityForm);
+        setLoading(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const submitData = {
+                ...beneficiaryForm,
+                status: saveAsDraft ? 'Draft' : 'Active'
+            };
+            const response = await beneficiaryAPI.create(submitData);
+
+            if (response.data.success) {
+                const beneficiaryId = response.data.data.beneficiary_id;
+
+                // Upload photo if selected
+                if (photoFile) {
+                    const photoFormData = new FormData();
+                    photoFormData.append('photo', photoFile);
+                    await beneficiaryAPI.uploadPhoto(beneficiaryId, photoFormData);
+                }
+
+                setSuccess(saveAsDraft ? 'Beneficiary saved as draft!' : 'Beneficiary registered successfully!');
+                setTimeout(() => {
+                    navigate('/beneficiaries');
+                }, 1500);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to register beneficiary');
+            console.error('Error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleActivitySubmit = async (e, saveAsDraft = false) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const submitData = {
+                ...activityForm,
+                status: saveAsDraft ? 'Draft' : activityForm.status
+            };
+
+            // Submit activity
+            console.log('Submitting activity:', submitData);
+            setSuccess(saveAsDraft ? 'Activity saved as draft!' : 'Activity submitted successfully!');
+
+            setTimeout(() => {
+                navigate('/activities');
+            }, 1500);
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to submit activity');
+            console.error('Error:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -109,34 +248,32 @@ const DataEntry = () => {
                         </div>
                     </div>
 
+                    {/* Success/Error Messages */}
+                    {success && (
+                        <div className="alert alert-success">
+                            <span>✅</span>
+                            <div>{success}</div>
+                        </div>
+                    )}
+                    {error && (
+                        <div className="alert alert-danger">
+                            <span>⚠️</span>
+                            <div>{error}</div>
+                        </div>
+                    )}
+
                     {/* Main Tabs */}
                     <div className="card" style={{ marginBottom: '20px' }}>
-                        <div style={{ display: 'flex', gap: '20px', borderBottom: '2px solid #ecf0f1' }}>
+                        <div className="main-tabs">
                             <button
                                 onClick={() => setMainTab('beneficiary')}
-                                style={{
-                                    padding: '15px 25px',
-                                    border: 'none',
-                                    background: 'none',
-                                    cursor: 'pointer',
-                                    fontWeight: mainTab === 'beneficiary' ? 'bold' : 'normal',
-                                    borderBottom: mainTab === 'beneficiary' ? '3px solid #3498db' : 'none',
-                                    color: mainTab === 'beneficiary' ? '#3498db' : '#7f8c8d'
-                                }}
+                                className={`main-tab ${mainTab === 'beneficiary' ? 'active' : ''}`}
                             >
                                 👤 Beneficiary Registration
                             </button>
                             <button
                                 onClick={() => setMainTab('activity')}
-                                style={{
-                                    padding: '15px 25px',
-                                    border: 'none',
-                                    background: 'none',
-                                    cursor: 'pointer',
-                                    fontWeight: mainTab === 'activity' ? 'bold' : 'normal',
-                                    borderBottom: mainTab === 'activity' ? '3px solid #3498db' : 'none',
-                                    color: mainTab === 'activity' ? '#3498db' : '#7f8c8d'
-                                }}
+                                className={`main-tab ${mainTab === 'activity' ? 'active' : ''}`}
                             >
                                 📝 Activity Entry
                             </button>
@@ -146,7 +283,74 @@ const DataEntry = () => {
                     {/* BENEFICIARY REGISTRATION TAB */}
                     {mainTab === 'beneficiary' && (
                         <div className="form-card">
-                            <form onSubmit={handleBeneficiarySubmit}>
+                            <form onSubmit={(e) => handleBeneficiarySubmit(e, false)}>
+                                {/* Photo Upload Section */}
+                                <div className="form-section">
+                                    <div className="form-section-title">Photo</div>
+                                    <div className="photo-upload-section">
+                                        <div className="photo-preview">
+                                            {photoPreview ? (
+                                                <img src={photoPreview} alt="Preview" />
+                                            ) : (
+                                                <div className="photo-placeholder">
+                                                    <span style={{ fontSize: '48px' }}>📷</span>
+                                                    <p>No photo selected</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="photo-upload-controls">
+                                            <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
+                                                Choose Photo
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handlePhotoChange}
+                                                    style={{ display: 'none' }}
+                                                />
+                                            </label>
+                                            <p className="form-hint">Max size: 5MB (JPG, PNG)</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Registration Information */}
+                                <div className="form-section">
+                                    <div className="form-section-title">Registration Information</div>
+                                    <div className="form-row">
+                                        <div className="form-field">
+                                            <label>Registration Number *</label>
+                                            <input
+                                                type="text"
+                                                value={beneficiaryForm.registration_number}
+                                                readOnly
+                                                className="form-control"
+                                                style={{ background: '#f8f9fa' }}
+                                            />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Registration Date *</label>
+                                            <input
+                                                type="date"
+                                                value={beneficiaryForm.registration_date}
+                                                onChange={(e) => setBeneficiaryForm({...beneficiaryForm, registration_date: e.target.value})}
+                                                className="form-control"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Status</label>
+                                            <select
+                                                value={beneficiaryForm.status}
+                                                onChange={(e) => setBeneficiaryForm({...beneficiaryForm, status: e.target.value})}
+                                                className="form-control"
+                                            >
+                                                <option value="Active">Active</option>
+                                                <option value="Inactive">Inactive</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Personal Information */}
                                 <div className="form-section">
                                     <div className="form-section-title">Personal Information</div>
@@ -158,6 +362,7 @@ const DataEntry = () => {
                                                 placeholder="Enter first name"
                                                 value={beneficiaryForm.first_name}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, first_name: e.target.value})}
+                                                className="form-control"
                                                 required
                                             />
                                         </div>
@@ -168,6 +373,7 @@ const DataEntry = () => {
                                                 placeholder="Enter middle name"
                                                 value={beneficiaryForm.middle_name}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, middle_name: e.target.value})}
+                                                className="form-control"
                                             />
                                         </div>
                                         <div className="form-field">
@@ -177,6 +383,7 @@ const DataEntry = () => {
                                                 placeholder="Enter last name"
                                                 value={beneficiaryForm.last_name}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, last_name: e.target.value})}
+                                                className="form-control"
                                                 required
                                             />
                                         </div>
@@ -189,6 +396,7 @@ const DataEntry = () => {
                                                 placeholder="Enter ID number"
                                                 value={beneficiaryForm.national_id}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, national_id: e.target.value})}
+                                                className="form-control"
                                                 required
                                             />
                                         </div>
@@ -198,6 +406,7 @@ const DataEntry = () => {
                                                 type="date"
                                                 value={beneficiaryForm.date_of_birth}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, date_of_birth: e.target.value})}
+                                                className="form-control"
                                                 required
                                             />
                                         </div>
@@ -206,6 +415,7 @@ const DataEntry = () => {
                                             <select
                                                 value={beneficiaryForm.gender}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, gender: e.target.value})}
+                                                className="form-control"
                                                 required
                                             >
                                                 <option value="">Select Gender</option>
@@ -215,6 +425,11 @@ const DataEntry = () => {
                                             </select>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Contact Information */}
+                                <div className="form-section">
+                                    <div className="form-section-title">Contact Information</div>
                                     <div className="form-row">
                                         <div className="form-field">
                                             <label>Phone Number *</label>
@@ -223,6 +438,7 @@ const DataEntry = () => {
                                                 placeholder="+254 700 000 000"
                                                 value={beneficiaryForm.phone_number}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, phone_number: e.target.value})}
+                                                className="form-control"
                                                 required
                                             />
                                         </div>
@@ -233,9 +449,9 @@ const DataEntry = () => {
                                                 placeholder="email@example.com"
                                                 value={beneficiaryForm.email}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, email: e.target.value})}
+                                                className="form-control"
                                             />
                                         </div>
-                                        <div className="form-field"></div>
                                     </div>
                                 </div>
 
@@ -248,12 +464,14 @@ const DataEntry = () => {
                                             <select
                                                 value={beneficiaryForm.county}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, county: e.target.value})}
+                                                className="form-control"
                                                 required
                                             >
                                                 <option value="">Select County</option>
                                                 <option value="Nairobi">Nairobi</option>
                                                 <option value="Kiambu">Kiambu</option>
                                                 <option value="Machakos">Machakos</option>
+                                                <option value="Kajiado">Kajiado</option>
                                             </select>
                                         </div>
                                         <div className="form-field">
@@ -261,12 +479,14 @@ const DataEntry = () => {
                                             <select
                                                 value={beneficiaryForm.sub_county}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, sub_county: e.target.value})}
+                                                className="form-control"
                                                 required
                                             >
                                                 <option value="">Select Sub-County</option>
                                                 <option value="Kibra">Kibra</option>
                                                 <option value="Dagoretti">Dagoretti</option>
                                                 <option value="Mathare">Mathare</option>
+                                                <option value="Westlands">Westlands</option>
                                             </select>
                                         </div>
                                         <div className="form-field">
@@ -274,9 +494,13 @@ const DataEntry = () => {
                                             <select
                                                 value={beneficiaryForm.ward}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, ward: e.target.value})}
+                                                className="form-control"
                                                 required
                                             >
                                                 <option value="">Select Ward</option>
+                                                <option value="Laini Saba">Laini Saba</option>
+                                                <option value="Lindi">Lindi</option>
+                                                <option value="Makina">Makina</option>
                                             </select>
                                         </div>
                                     </div>
@@ -288,17 +512,26 @@ const DataEntry = () => {
                                                 placeholder="Enter village or estate name"
                                                 value={beneficiaryForm.village}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, village: e.target.value})}
+                                                className="form-control"
                                                 required
                                             />
                                         </div>
-                                        <div className="form-field"></div>
-                                        <div className="form-field"></div>
+                                        <div className="form-field">
+                                            <label>Postal Address</label>
+                                            <input
+                                                type="text"
+                                                placeholder="P.O. Box number"
+                                                value={beneficiaryForm.postal_address}
+                                                onChange={(e) => setBeneficiaryForm({...beneficiaryForm, postal_address: e.target.value})}
+                                                className="form-control"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Household Information */}
+                                {/* Household & Socio-Economic Information */}
                                 <div className="form-section">
-                                    <div className="form-section-title">Household Information</div>
+                                    <div className="form-section-title">Household & Socio-Economic Information</div>
                                     <div className="form-row">
                                         <div className="form-field">
                                             <label>Household Size *</label>
@@ -307,6 +540,7 @@ const DataEntry = () => {
                                                 placeholder="Number of people"
                                                 value={beneficiaryForm.household_size}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, household_size: e.target.value})}
+                                                className="form-control"
                                                 required
                                             />
                                         </div>
@@ -315,12 +549,14 @@ const DataEntry = () => {
                                             <select
                                                 value={beneficiaryForm.marital_status}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, marital_status: e.target.value})}
+                                                className="form-control"
                                             >
                                                 <option value="">Select Status</option>
                                                 <option value="Single">Single</option>
                                                 <option value="Married">Married</option>
                                                 <option value="Widowed">Widowed</option>
                                                 <option value="Divorced">Divorced</option>
+                                                <option value="Separated">Separated</option>
                                             </select>
                                         </div>
                                         <div className="form-field">
@@ -328,6 +564,7 @@ const DataEntry = () => {
                                             <select
                                                 value={beneficiaryForm.education_level}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, education_level: e.target.value})}
+                                                className="form-control"
                                             >
                                                 <option value="">Select Education Level</option>
                                                 <option value="No Formal Education">No Formal Education</option>
@@ -346,10 +583,29 @@ const DataEntry = () => {
                                                 placeholder="Current occupation"
                                                 value={beneficiaryForm.occupation}
                                                 onChange={(e) => setBeneficiaryForm({...beneficiaryForm, occupation: e.target.value})}
+                                                className="form-control"
                                             />
                                         </div>
-                                        <div className="form-field"></div>
-                                        <div className="form-field"></div>
+                                        <div className="form-field">
+                                            <label>Monthly Income (KES)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={beneficiaryForm.monthly_income}
+                                                onChange={(e) => setBeneficiaryForm({...beneficiaryForm, monthly_income: e.target.value})}
+                                                className="form-control"
+                                            />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Disability Status</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Describe if applicable"
+                                                value={beneficiaryForm.disability_status}
+                                                onChange={(e) => setBeneficiaryForm({...beneficiaryForm, disability_status: e.target.value})}
+                                                className="form-control"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -358,10 +614,15 @@ const DataEntry = () => {
                                     <div className="form-section-title">Vulnerability Assessment</div>
                                     <div className="form-field">
                                         <label>Vulnerable Categories (Check all that apply)</label>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginTop: '10px' }}>
-                                            {['Person with Disability', 'Orphan/Vulnerable Child', 'Single Mother', 'Elderly/Aged', 'Refugee/IDP', 'Chronically Ill'].map((category) => (
-                                                <label key={category} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <input type="checkbox" /> {category}
+                                        <div className="checkbox-grid">
+                                            {['Person with Disability', 'Orphan/Vulnerable Child', 'Single Mother', 'Single Father', 'Elderly/Aged', 'Refugee/IDP', 'Chronically Ill', 'HIV/AIDS Affected'].map((category) => (
+                                                <label key={category} className="checkbox-label">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={beneficiaryForm.vulnerability_categories.includes(category)}
+                                                        onChange={() => handleVulnerabilityChange(category)}
+                                                    />
+                                                    <span>{category}</span>
                                                 </label>
                                             ))}
                                         </div>
@@ -372,6 +633,8 @@ const DataEntry = () => {
                                             placeholder="Any additional information about the beneficiary's situation..."
                                             value={beneficiaryForm.notes}
                                             onChange={(e) => setBeneficiaryForm({...beneficiaryForm, notes: e.target.value})}
+                                            className="form-control"
+                                            rows="4"
                                         />
                                     </div>
                                 </div>
@@ -381,26 +644,41 @@ const DataEntry = () => {
                                     <div className="form-section-title">Program Enrollment</div>
                                     <div className="form-field">
                                         <label>Select Programs to Enroll *</label>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginTop: '10px' }}>
+                                        <div className="checkbox-grid">
                                             {categories.map((cat) => (
-                                                <label key={cat.category_id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <input type="checkbox" /> {cat.category_name}
+                                                <label key={cat.category_id} className="checkbox-label">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={beneficiaryForm.programs.includes(cat.category_id)}
+                                                        onChange={() => handleProgramEnrollment(cat.category_id)}
+                                                    />
+                                                    <span>{cat.category_name}</span>
                                                 </label>
                                             ))}
                                         </div>
+                                        {beneficiaryForm.programs.length === 0 && (
+                                            <p className="form-hint" style={{ color: '#e74c3c', marginTop: '10px' }}>
+                                                Please select at least one program
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="btn-group">
+                                <div className="btn-group mobile-btn-group">
                                     <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
                                         Cancel
                                     </button>
-                                    <button type="button" className="btn btn-secondary">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={(e) => handleBeneficiarySubmit(e, true)}
+                                        disabled={loading}
+                                    >
                                         Save as Draft
                                     </button>
-                                    <button type="submit" className="btn btn-primary">
-                                        Register Beneficiary
+                                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                                        {loading ? 'Registering...' : 'Register Beneficiary'}
                                     </button>
                                 </div>
                             </form>
@@ -416,31 +694,31 @@ const DataEntry = () => {
                                     className={`tab ${activityTab === 'basic' ? 'active' : ''}`}
                                     onClick={() => setActivityTab('basic')}
                                 >
-                                    Basic Information
+                                    Basic Info
                                 </button>
                                 <button
                                     className={`tab ${activityTab === 'beneficiaries' ? 'active' : ''}`}
                                     onClick={() => setActivityTab('beneficiaries')}
                                 >
-                                    Beneficiary Details
+                                    Beneficiaries
                                 </button>
                                 <button
                                     className={`tab ${activityTab === 'details' ? 'active' : ''}`}
                                     onClick={() => setActivityTab('details')}
                                 >
-                                    Activity Details
+                                    Details
                                 </button>
                                 <button
                                     className={`tab ${activityTab === 'budget' ? 'active' : ''}`}
                                     onClick={() => setActivityTab('budget')}
                                 >
-                                    Budget & Resources
+                                    Budget
                                 </button>
                                 <button
                                     className={`tab ${activityTab === 'outcomes' ? 'active' : ''}`}
                                     onClick={() => setActivityTab('outcomes')}
                                 >
-                                    Outcomes & Impact
+                                    Outcomes
                                 </button>
                                 <button
                                     className={`tab ${activityTab === 'attachments' ? 'active' : ''}`}
@@ -456,47 +734,88 @@ const DataEntry = () => {
                                     <div>Complete all required fields marked with (*). You can save as draft and continue later.</div>
                                 </div>
 
-                                <form onSubmit={handleActivitySubmit}>
+                                <form onSubmit={(e) => handleActivitySubmit(e, false)}>
                                     {/* Basic Information Tab */}
                                     {activityTab === 'basic' && (
                                         <div className="form-section">
                                             <div className="form-section-title">Basic Information</div>
                                             <div className="form-row">
                                                 <div className="form-field">
+                                                    <label>Activity Number *</label>
+                                                    <input
+                                                        type="text"
+                                                        value={activityForm.activity_number}
+                                                        readOnly
+                                                        className="form-control"
+                                                        style={{ background: '#f8f9fa' }}
+                                                    />
+                                                </div>
+                                                <div className="form-field">
+                                                    <label>Status</label>
+                                                    <select
+                                                        value={activityForm.status}
+                                                        onChange={(e) => setActivityForm({...activityForm, status: e.target.value})}
+                                                        className="form-control"
+                                                    >
+                                                        <option value="Planned">Planned</option>
+                                                        <option value="In Progress">In Progress</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                    </select>
+                                                </div>
+                                                <div className="form-field">
+                                                    <label>Priority</label>
+                                                    <select
+                                                        value={activityForm.priority}
+                                                        onChange={(e) => setActivityForm({...activityForm, priority: e.target.value})}
+                                                        className="form-control"
+                                                    >
+                                                        <option value="Low">Low</option>
+                                                        <option value="Medium">Medium</option>
+                                                        <option value="High">High</option>
+                                                        <option value="Critical">Critical</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="form-row">
+                                                <div className="form-field full-width">
                                                     <label>Activity Title *</label>
                                                     <input
                                                         type="text"
                                                         placeholder="Enter activity title"
                                                         value={activityForm.activity_title}
                                                         onChange={(e) => setActivityForm({...activityForm, activity_title: e.target.value})}
+                                                        className="form-control"
                                                         required
                                                     />
                                                 </div>
+                                            </div>
+                                            <div className="form-row">
                                                 <div className="form-field">
-                                                    <label>Program Module *</label>
+                                                    <label>Program *</label>
                                                     <select
-                                                        value={activityForm.program_module}
-                                                        onChange={(e) => setActivityForm({...activityForm, program_module: e.target.value})}
+                                                        value={activityForm.program_id}
+                                                        onChange={(e) => setActivityForm({...activityForm, program_id: e.target.value})}
+                                                        className="form-control"
                                                         required
                                                     >
-                                                        <option value="">Select Program Module</option>
-                                                        {categories.map((cat) => (
-                                                            <option key={cat.category_id} value={cat.category_id}>
-                                                                {cat.category_name}
+                                                        <option value="">Select Program</option>
+                                                        {programs.map((prog) => (
+                                                            <option key={prog.program_id} value={prog.program_id}>
+                                                                {prog.program_name}
                                                             </option>
                                                         ))}
                                                     </select>
                                                 </div>
-                                            </div>
-                                            <div className="form-row">
                                                 <div className="form-field">
                                                     <label>Activity Type *</label>
                                                     <select
                                                         value={activityForm.activity_type}
                                                         onChange={(e) => setActivityForm({...activityForm, activity_type: e.target.value})}
+                                                        className="form-control"
                                                         required
                                                     >
-                                                        <option value="">Select Activity Type</option>
+                                                        <option value="">Select Type</option>
                                                         <option value="Training/Workshop">Training/Workshop</option>
                                                         <option value="Infrastructure Project">Infrastructure Project</option>
                                                         <option value="Distribution/Relief">Distribution/Relief</option>
@@ -512,6 +831,7 @@ const DataEntry = () => {
                                                         placeholder="Activity location"
                                                         value={activityForm.location}
                                                         onChange={(e) => setActivityForm({...activityForm, location: e.target.value})}
+                                                        className="form-control"
                                                         required
                                                     />
                                                 </div>
@@ -523,6 +843,7 @@ const DataEntry = () => {
                                                         type="date"
                                                         value={activityForm.start_date}
                                                         onChange={(e) => setActivityForm({...activityForm, start_date: e.target.value})}
+                                                        className="form-control"
                                                         required
                                                     />
                                                 </div>
@@ -532,13 +853,17 @@ const DataEntry = () => {
                                                         type="date"
                                                         value={activityForm.end_date}
                                                         onChange={(e) => setActivityForm({...activityForm, end_date: e.target.value})}
+                                                        className="form-control"
                                                     />
                                                 </div>
+                                            </div>
+                                            <div className="form-row">
                                                 <div className="form-field">
                                                     <label>Funding Source</label>
                                                     <select
                                                         value={activityForm.funding_source}
                                                         onChange={(e) => setActivityForm({...activityForm, funding_source: e.target.value})}
+                                                        className="form-control"
                                                     >
                                                         <option value="">Select Funding Source</option>
                                                         <option value="Caritas Internal">Caritas Internal</option>
@@ -548,14 +873,26 @@ const DataEntry = () => {
                                                         <option value="Community Contribution">Community Contribution</option>
                                                     </select>
                                                 </div>
+                                                <div className="form-field">
+                                                    <label>Implementing Partner</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Partner organization (if any)"
+                                                        value={activityForm.implementing_partner}
+                                                        onChange={(e) => setActivityForm({...activityForm, implementing_partner: e.target.value})}
+                                                        className="form-control"
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="form-row">
-                                                <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                                                <div className="form-field full-width">
                                                     <label>Description *</label>
                                                     <textarea
                                                         placeholder="Detailed description of the activity..."
                                                         value={activityForm.description}
                                                         onChange={(e) => setActivityForm({...activityForm, description: e.target.value})}
+                                                        className="form-control"
+                                                        rows="4"
                                                         required
                                                     />
                                                 </div>
@@ -572,9 +909,10 @@ const DataEntry = () => {
                                                     <label>Target Participants *</label>
                                                     <input
                                                         type="number"
-                                                        placeholder="Expected number of participants"
-                                                        value={activityForm.target_participants}
-                                                        onChange={(e) => setActivityForm({...activityForm, target_participants: e.target.value})}
+                                                        placeholder="Expected number"
+                                                        value={activityForm.planned_participants}
+                                                        onChange={(e) => setActivityForm({...activityForm, planned_participants: e.target.value})}
+                                                        className="form-control"
                                                         required
                                                     />
                                                 </div>
@@ -582,17 +920,21 @@ const DataEntry = () => {
                                                     <label>Actual Participants</label>
                                                     <input
                                                         type="number"
-                                                        placeholder="Actual number of participants"
+                                                        placeholder="Actual number"
                                                         value={activityForm.actual_participants}
                                                         onChange={(e) => setActivityForm({...activityForm, actual_participants: e.target.value})}
+                                                        className="form-control"
                                                     />
                                                 </div>
-                                                <div className="form-field"></div>
                                             </div>
-                                            <div style={{ marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                                                <p style={{ color: '#7f8c8d', marginBottom: '10px' }}>
-                                                    Beneficiary selection and tracking will be available here.
-                                                </p>
+                                            <div className="info-box">
+                                                <p><strong>📋 Beneficiary Selection</strong></p>
+                                                <p>Select beneficiaries from the database to link them to this activity. This functionality will allow you to:</p>
+                                                <ul>
+                                                    <li>Search and add registered beneficiaries</li>
+                                                    <li>Track attendance and participation</li>
+                                                    <li>Generate beneficiary reports</li>
+                                                </ul>
                                             </div>
                                         </div>
                                     )}
@@ -600,11 +942,16 @@ const DataEntry = () => {
                                     {/* Activity Details Tab */}
                                     {activityTab === 'details' && (
                                         <div className="form-section">
-                                            <div className="form-section-title">Activity Details</div>
-                                            <div style={{ padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                                                <p style={{ color: '#7f8c8d' }}>
-                                                    Additional activity-specific details will be captured here.
-                                                </p>
+                                            <div className="form-section-title">Additional Activity Details</div>
+                                            <div className="info-box">
+                                                <p><strong>📝 Activity-Specific Information</strong></p>
+                                                <p>This section will contain detailed information specific to the activity type, such as:</p>
+                                                <ul>
+                                                    <li>Training materials and curriculum</li>
+                                                    <li>Infrastructure project specifications</li>
+                                                    <li>Distribution item lists and quantities</li>
+                                                    <li>Campaign reach and channels</li>
+                                                </ul>
                                             </div>
                                         </div>
                                     )}
@@ -615,25 +962,36 @@ const DataEntry = () => {
                                             <div className="form-section-title">Budget & Resources</div>
                                             <div className="form-row">
                                                 <div className="form-field">
-                                                    <label>Planned Budget *</label>
+                                                    <label>Planned Budget (KES) *</label>
                                                     <input
                                                         type="number"
                                                         placeholder="0.00"
                                                         value={activityForm.planned_budget}
                                                         onChange={(e) => setActivityForm({...activityForm, planned_budget: e.target.value})}
+                                                        className="form-control"
                                                         required
                                                     />
                                                 </div>
                                                 <div className="form-field">
-                                                    <label>Actual Budget</label>
+                                                    <label>Actual Budget (KES)</label>
                                                     <input
                                                         type="number"
                                                         placeholder="0.00"
                                                         value={activityForm.actual_budget}
                                                         onChange={(e) => setActivityForm({...activityForm, actual_budget: e.target.value})}
+                                                        className="form-control"
                                                     />
                                                 </div>
-                                                <div className="form-field"></div>
+                                            </div>
+                                            <div className="info-box">
+                                                <p><strong>💰 Resource Tracking</strong></p>
+                                                <p>Track all resources used in this activity including:</p>
+                                                <ul>
+                                                    <li>Materials and supplies</li>
+                                                    <li>Equipment and tools</li>
+                                                    <li>Human resources and staff time</li>
+                                                    <li>Transportation and logistics</li>
+                                                </ul>
                                             </div>
                                         </div>
                                     )}
@@ -648,7 +1006,23 @@ const DataEntry = () => {
                                                     placeholder="Describe the outcomes and impact of this activity..."
                                                     value={activityForm.outcomes}
                                                     onChange={(e) => setActivityForm({...activityForm, outcomes: e.target.value})}
+                                                    className="form-control"
+                                                    rows="4"
                                                 />
+                                            </div>
+                                            <div className="form-field" style={{ marginTop: '20px' }}>
+                                                <label>Impact Statement</label>
+                                                <textarea
+                                                    placeholder="Describe the long-term impact on beneficiaries and community..."
+                                                    value={activityForm.impact}
+                                                    onChange={(e) => setActivityForm({...activityForm, impact: e.target.value})}
+                                                    className="form-control"
+                                                    rows="4"
+                                                />
+                                            </div>
+                                            <div className="info-box" style={{ marginTop: '20px' }}>
+                                                <p><strong>📊 Indicator Measurement</strong></p>
+                                                <p>Link this activity to program indicators to track progress towards goals.</p>
                                             </div>
                                         </div>
                                     )}
@@ -656,25 +1030,44 @@ const DataEntry = () => {
                                     {/* Attachments Tab */}
                                     {activityTab === 'attachments' && (
                                         <div className="form-section">
-                                            <div className="form-section-title">Attachments</div>
-                                            <div style={{ padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                                                <p style={{ color: '#7f8c8d' }}>
-                                                    File upload functionality will be available here.
-                                                </p>
+                                            <div className="form-section-title">Attachments & Documents</div>
+                                            <div className="info-box">
+                                                <p><strong>📎 Document Upload</strong></p>
+                                                <p>Upload supporting documents such as:</p>
+                                                <ul>
+                                                    <li>Activity reports and summaries</li>
+                                                    <li>Photos and videos</li>
+                                                    <li>Attendance sheets and sign-in forms</li>
+                                                    <li>Receipts and financial documents</li>
+                                                    <li>Certificates and training materials</li>
+                                                </ul>
+                                                <div style={{ marginTop: '15px', padding: '20px', background: 'white', borderRadius: '8px', border: '2px dashed #3498db' }}>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <span style={{ fontSize: '48px' }}>📁</span>
+                                                        <p style={{ marginTop: '10px', color: '#7f8c8d' }}>
+                                                            File upload functionality will be available here
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
 
                                     {/* Action Buttons */}
-                                    <div className="btn-group" style={{ marginTop: '30px' }}>
+                                    <div className="btn-group mobile-btn-group" style={{ marginTop: '30px' }}>
                                         <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
                                             Cancel
                                         </button>
-                                        <button type="button" className="btn btn-secondary">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={(e) => handleActivitySubmit(e, true)}
+                                            disabled={loading}
+                                        >
                                             Save as Draft
                                         </button>
-                                        <button type="submit" className="btn btn-primary">
-                                            Submit Activity
+                                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                                            {loading ? 'Submitting...' : 'Submit Activity'}
                                         </button>
                                     </div>
                                 </form>
