@@ -162,25 +162,33 @@ exports.createBeneficiary = async (req, res) => {
             });
         }
 
-        // Sanitize numeric fields - convert empty strings to null
+        // Sanitize fields - convert empty strings to null
         const sanitizedHouseholdSize = household_size === '' || household_size === null || household_size === undefined ? null : parseInt(household_size);
         const sanitizedMonthlyIncome = monthly_income === '' || monthly_income === null || monthly_income === undefined ? null : parseFloat(monthly_income);
+
+        // Sanitize nullable string fields
+        const sanitizedEmail = email === '' || email === null || email === undefined ? null : email;
+        const sanitizedMiddleName = middle_name === '' || middle_name === null || middle_name === undefined ? null : middle_name;
+        const sanitizedDisabilityStatus = disability_status === '' || disability_status === null || disability_status === undefined ? null : disability_status;
+        const sanitizedMaritalStatus = marital_status === '' || marital_status === null || marital_status === undefined ? null : marital_status;
+        const sanitizedEducationLevel = education_level === '' || education_level === null || education_level === undefined ? null : education_level;
+        const sanitizedOccupation = occupation === '' || occupation === null || occupation === undefined ? null : occupation;
 
         // Create beneficiary
         const beneficiary = await Beneficiary.create({
             registration_number,
             first_name,
-            middle_name,
+            middle_name: sanitizedMiddleName,
             last_name,
             date_of_birth,
             gender,
             national_id,
             phone_number,
-            email,
-            marital_status,
-            education_level,
-            occupation,
-            disability_status,
+            email: sanitizedEmail,
+            marital_status: sanitizedMaritalStatus,
+            education_level: sanitizedEducationLevel,
+            occupation: sanitizedOccupation,
+            disability_status: sanitizedDisabilityStatus,
             household_size: sanitizedHouseholdSize,
             monthly_income: sanitizedMonthlyIncome,
             registration_date: registration_date || new Date(),
@@ -244,6 +252,26 @@ exports.updateBeneficiary = async (req, res) => {
         }
         if (updateData.monthly_income !== undefined) {
             updateData.monthly_income = updateData.monthly_income === '' || updateData.monthly_income === null ? null : parseFloat(updateData.monthly_income);
+        }
+
+        // Sanitize nullable string fields - convert empty strings to null
+        if (updateData.email !== undefined) {
+            updateData.email = updateData.email === '' || updateData.email === null ? null : updateData.email;
+        }
+        if (updateData.middle_name !== undefined) {
+            updateData.middle_name = updateData.middle_name === '' || updateData.middle_name === null ? null : updateData.middle_name;
+        }
+        if (updateData.disability_status !== undefined) {
+            updateData.disability_status = updateData.disability_status === '' || updateData.disability_status === null ? null : updateData.disability_status;
+        }
+        if (updateData.marital_status !== undefined) {
+            updateData.marital_status = updateData.marital_status === '' || updateData.marital_status === null ? null : updateData.marital_status;
+        }
+        if (updateData.education_level !== undefined) {
+            updateData.education_level = updateData.education_level === '' || updateData.education_level === null ? null : updateData.education_level;
+        }
+        if (updateData.occupation !== undefined) {
+            updateData.occupation = updateData.occupation === '' || updateData.occupation === null ? null : updateData.occupation;
         }
 
         // Update beneficiary
