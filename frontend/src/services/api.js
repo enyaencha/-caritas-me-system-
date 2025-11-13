@@ -120,45 +120,6 @@ export const authAPI = {
 };
 
 // =====================================================
-// PROGRAM API
-// =====================================================
-
-export const programAPI = {
-    // Get all programs with filters
-    getAll: (params) => api.get('/programs', { params }),
-
-    // Get program by ID
-    getById: (id) => api.get(`/programs/${id}`),
-
-    // Create new program
-    create: (data) => api.post('/programs', data),
-
-    // Update program
-    update: (id, data) => api.put(`/programs/${id}`, data),
-
-    // Delete program
-    delete: (id) => api.delete(`/programs/${id}`),
-
-    // Get statistics
-    getStats: () => api.get('/programs/stats/summary'),
-
-    // Get categories
-    getCategories: () => api.get('/programs/categories'),
-
-    // Create category
-    createCategory: (data) => api.post('/programs/categories', data),
-
-    // Add indicator to program
-    addIndicator: (programId, data) => api.post(`/programs/${programId}/indicators`, data),
-
-    // Update indicator
-    updateIndicator: (indicatorId, data) => api.put(`/programs/indicators/${indicatorId}`, data),
-
-    // Delete indicator
-    deleteIndicator: (indicatorId) => api.delete(`/programs/indicators/${indicatorId}`)
-};
-
-// =====================================================
 // DASHBOARD API
 // =====================================================
 
