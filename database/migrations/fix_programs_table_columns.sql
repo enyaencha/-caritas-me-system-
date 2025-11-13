@@ -25,13 +25,6 @@ ALTER TABLE programs
   ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20),
   ADD COLUMN IF NOT EXISTS notes TEXT;
 
--- Update program_manager column type from UUID to VARCHAR
--- First, add the new column
-ALTER TABLE programs ADD COLUMN IF NOT EXISTS program_manager_name VARCHAR(100);
-
--- Copy data from old program_manager if it exists and has user data
--- (Skip this in initial setup as there's no data yet)
-
 -- Update status ENUM to match model (including approval statuses)
 ALTER TABLE programs DROP CONSTRAINT IF EXISTS programs_status_check;
 ALTER TABLE programs ADD CONSTRAINT programs_status_check
@@ -49,21 +42,32 @@ BEGIN
   END IF;
 END $$;
 
--- Rename program_manager column (from UUID to name field)
+-- Handle program_manager column migration
 DO $$
 BEGIN
+  -- Case 1: program_manager is UUID type, need to convert to VARCHAR
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'programs' AND column_name = 'program_manager'
     AND data_type = 'uuid'
   ) THEN
+    -- Drop the UUID column and create a new VARCHAR one
     ALTER TABLE programs DROP COLUMN program_manager;
-    ALTER TABLE programs RENAME COLUMN program_manager_name TO program_manager;
-  ELSIF EXISTS (
+    ALTER TABLE programs ADD COLUMN program_manager VARCHAR(100);
+  -- Case 2: program_manager doesn't exist yet
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'programs' AND column_name = 'program_manager'
+  ) THEN
+    ALTER TABLE programs ADD COLUMN program_manager VARCHAR(100);
+  END IF;
+
+  -- Clean up program_manager_name if it exists
+  IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'programs' AND column_name = 'program_manager_name'
   ) THEN
-    ALTER TABLE programs RENAME COLUMN program_manager_name TO program_manager;
+    ALTER TABLE programs DROP COLUMN program_manager_name;
   END IF;
 END $$;
 
