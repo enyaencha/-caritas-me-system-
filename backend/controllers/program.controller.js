@@ -65,7 +65,7 @@ exports.getAllPrograms = async (req, res) => {
                 {
                     model: ProgramCategory,
                     as: 'category',
-                    attributes: ['category_id', 'category_name', 'color_code']
+                    attributes: ['category_id', 'category_name', 'color']
                 }
             ]
         });
@@ -107,7 +107,7 @@ exports.getProgramById = async (req, res) => {
                 {
                     model: ProgramCategory,
                     as: 'category',
-                    attributes: ['category_id', 'category_name', 'description', 'color_code']
+                    attributes: ['category_id', 'category_name', 'description', 'color']
                 },
                 {
                     model: ProgramIndicator,
@@ -454,7 +454,7 @@ exports.getAllCategories = async (req, res) => {
  */
 exports.createCategory = async (req, res) => {
     try {
-        const { category_name, description, color_code } = req.body;
+        const { category_name, description, color } = req.body;
 
         if (!category_name) {
             return res.status(400).json({
@@ -466,7 +466,7 @@ exports.createCategory = async (req, res) => {
         const category = await ProgramCategory.create({
             category_name,
             description,
-            color_code: color_code || '#3B82F6'
+            color: color || '#3B82F6'
         });
 
         res.status(201).json({
