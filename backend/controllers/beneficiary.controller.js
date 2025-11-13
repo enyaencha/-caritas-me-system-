@@ -162,6 +162,10 @@ exports.createBeneficiary = async (req, res) => {
             });
         }
 
+        // Sanitize numeric fields - convert empty strings to null
+        const sanitizedHouseholdSize = household_size === '' || household_size === null || household_size === undefined ? null : parseInt(household_size);
+        const sanitizedMonthlyIncome = monthly_income === '' || monthly_income === null || monthly_income === undefined ? null : parseFloat(monthly_income);
+
         // Create beneficiary
         const beneficiary = await Beneficiary.create({
             registration_number,
@@ -177,8 +181,8 @@ exports.createBeneficiary = async (req, res) => {
             education_level,
             occupation,
             disability_status,
-            household_size,
-            monthly_income,
+            household_size: sanitizedHouseholdSize,
+            monthly_income: sanitizedMonthlyIncome,
             registration_date: registration_date || new Date(),
             status: status || 'Active',
             photo
@@ -232,6 +236,14 @@ exports.updateBeneficiary = async (req, res) => {
                     message: 'Registration number already exists'
                 });
             }
+        }
+
+        // Sanitize numeric fields - convert empty strings to null
+        if (updateData.household_size !== undefined) {
+            updateData.household_size = updateData.household_size === '' || updateData.household_size === null ? null : parseInt(updateData.household_size);
+        }
+        if (updateData.monthly_income !== undefined) {
+            updateData.monthly_income = updateData.monthly_income === '' || updateData.monthly_income === null ? null : parseFloat(updateData.monthly_income);
         }
 
         // Update beneficiary
