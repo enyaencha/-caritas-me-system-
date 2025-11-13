@@ -496,7 +496,7 @@ const ProgramDetails = () => {
                                     <div style={{ fontSize: '32px', fontWeight: '700' }}>
                                         {formatCurrency(program.budget_remaining)}
                                     </div>
-                                    <div style={{ fontSize: '14px', opacity: 0.9', marginTop: '5px' }}>
+                                    <div style={{ fontSize: '14px', opacity: 0.9, marginTop: '5px' }}>
                                         {(100 - getBudgetPercentage()).toFixed(1)}% remaining
                                     </div>
                                 </div>
