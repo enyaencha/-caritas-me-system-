@@ -292,8 +292,8 @@ const ProgramList = () => {
                                                                 display: 'inline-block',
                                                                 padding: '4px 8px',
                                                                 borderRadius: '4px',
-                                                                backgroundColor: program.category.color_code + '20',
-                                                                color: program.category.color_code,
+                                                                backgroundColor: program.category.color + '20',
+                                                                color: program.category.color,
                                                                 fontSize: '12px',
                                                                 fontWeight: '600'
                                                             }}
