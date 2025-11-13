@@ -11,17 +11,23 @@ const ProgramCategory = sequelize.define('ProgramCategory', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
-    category_name: {
-        type: DataTypes.STRING(100),
+    category_code: {
+        type: DataTypes.STRING(50),
         allowNull: false,
         unique: true
+    },
+    category_name: {
+        type: DataTypes.STRING(200),
+        allowNull: false
     },
     description: {
         type: DataTypes.TEXT
     },
-    color_code: {
-        type: DataTypes.STRING(7),
-        defaultValue: '#3B82F6'
+    icon: {
+        type: DataTypes.STRING(50)
+    },
+    color: {
+        type: DataTypes.STRING(20)
     },
     is_active: {
         type: DataTypes.BOOLEAN,
@@ -31,7 +37,7 @@ const ProgramCategory = sequelize.define('ProgramCategory', {
     tableName: 'program_categories',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: false
 });
 
 module.exports = ProgramCategory;
