@@ -8,13 +8,20 @@ const ProgramCategory = require('../models/ProgramCategory');
 const sequelize = require('../config/database');
 
 // 5 Primary/Client-Required Programs
+// Programs are categorized into the 6 standard program categories:
+// PEACE - Peace Building & Cohesion
+// CAPACITY - Capacity Building (Training and skill development)
+// FOOD - Food & Environment (Food security and environmental programs)
+// SOCIO - Socio-Economic (Economic empowerment and livelihoods)
+// GENDER - Gender & Youth (Gender equality and youth development)
+// RELIEF - Relief Services (Emergency relief and charitable services)
+
 const primaryPrograms = [
     {
         program_code: 'EDU-001',
         program_name: 'Education Support Program',
         description: 'Providing educational support and resources to underserved communities',
-        category_name: 'Education',
-        category_color: '#3B82F6',
+        category_code: 'CAPACITY', // Training and skill development
         funding_source: 'UNICEF',
         total_budget: 250000,
         start_date: '2024-01-01',
@@ -31,8 +38,7 @@ const primaryPrograms = [
         program_code: 'HLT-001',
         program_name: 'Community Health Initiative',
         description: 'Healthcare services and health education for vulnerable populations',
-        category_name: 'Healthcare',
-        category_color: '#10B981',
+        category_code: 'RELIEF', // Relief services including healthcare
         funding_source: 'WHO',
         total_budget: 350000,
         start_date: '2024-01-15',
@@ -49,8 +55,7 @@ const primaryPrograms = [
         program_code: 'NUT-001',
         program_name: 'Child Nutrition Program',
         description: 'Addressing malnutrition and promoting healthy eating habits among children',
-        category_name: 'Nutrition',
-        category_color: '#F59E0B',
+        category_code: 'FOOD', // Food security programs
         funding_source: 'WFP',
         total_budget: 180000,
         start_date: '2024-02-01',
@@ -67,8 +72,7 @@ const primaryPrograms = [
         program_code: 'WAT-001',
         program_name: 'Clean Water Access Project',
         description: 'Providing clean water and sanitation facilities to rural communities',
-        category_name: 'WASH',
-        category_color: '#06B6D4',
+        category_code: 'FOOD', // Environmental programs
         funding_source: 'EU',
         total_budget: 450000,
         start_date: '2024-03-01',
@@ -85,8 +89,7 @@ const primaryPrograms = [
         program_code: 'LVL-001',
         program_name: 'Livelihood Enhancement Program',
         description: 'Economic empowerment through skills training and microfinance',
-        category_name: 'Livelihood',
-        category_color: '#8B5CF6',
+        category_code: 'SOCIO', // Socio-Economic empowerment
         funding_source: 'USAID',
         total_budget: 300000,
         start_date: '2024-01-10',
@@ -138,19 +141,15 @@ const seedPrograms = async () => {
                 continue;
             }
 
-            // Create or get category
-            let category = await ProgramCategory.findOne({
-                where: { category_name: programData.category_name }
+            // Get category by category_code (categories should already exist in database)
+            const category = await ProgramCategory.findOne({
+                where: { category_code: programData.category_code }
             });
 
             if (!category) {
-                category = await ProgramCategory.create({
-                    category_name: programData.category_name,
-                    description: `${programData.category_name} programs and activities`,
-                    color_code: programData.category_color,
-                    is_active: true
-                });
-                console.log(`✓ Created category: ${programData.category_name}`);
+                console.error(`✗ Category ${programData.category_code} not found in database!`);
+                console.log('Please ensure program_categories are seeded first.');
+                continue;
             }
 
             // Create program
