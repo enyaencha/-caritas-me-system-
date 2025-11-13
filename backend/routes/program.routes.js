@@ -1,5 +1,48 @@
+// =====================================================
+// PROGRAM ROUTES
+// =====================================================
+
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-router.get('/', protect, (req, res) => { res.json({ success: true, message: 'Program routes' }); });
+const {
+    getAllPrograms,
+    getProgramById,
+    createProgram,
+    updateProgram,
+    deleteProgram,
+    getProgramStats,
+    getAllCategories,
+    createCategory,
+    addIndicator,
+    updateIndicator,
+    deleteIndicator
+} = require('../controllers/program.controller');
+
+// Statistics route (must be before /:id route)
+router.get('/stats/summary', protect, getProgramStats);
+
+// Category routes
+router.route('/categories')
+    .get(protect, getAllCategories)
+    .post(protect, createCategory);
+
+// Indicator routes
+router.route('/:id/indicators')
+    .post(protect, addIndicator);
+
+router.route('/indicators/:indicatorId')
+    .put(protect, updateIndicator)
+    .delete(protect, deleteIndicator);
+
+// CRUD routes
+router.route('/')
+    .get(protect, getAllPrograms)
+    .post(protect, createProgram);
+
+router.route('/:id')
+    .get(protect, getProgramById)
+    .put(protect, updateProgram)
+    .delete(protect, deleteProgram);
+
 module.exports = router;
