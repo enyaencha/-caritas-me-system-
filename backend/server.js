@@ -86,6 +86,9 @@ app.use((err, req, res, next) => {
 
 const db = require('./config/database');
 
+// Load models and associations
+require('./models/index');
+
 // Test database connection
 db.authenticate()
     .then(() => {

@@ -76,6 +76,39 @@ export const beneficiaryAPI = {
 };
 
 // =====================================================
+// PROGRAM API
+// =====================================================
+
+export const programAPI = {
+    // Get all programs with filters
+    getAll: (params) => api.get('/programs', { params }),
+
+    // Get program by ID
+    getById: (id) => api.get(`/programs/${id}`),
+
+    // Create new program
+    create: (data) => api.post('/programs', data),
+
+    // Update program
+    update: (id, data) => api.put(`/programs/${id}`, data),
+
+    // Delete program
+    delete: (id) => api.delete(`/programs/${id}`),
+
+    // Get statistics
+    getStats: () => api.get('/programs/stats/summary'),
+
+    // Category operations
+    getCategories: () => api.get('/programs/categories'),
+    createCategory: (data) => api.post('/programs/categories', data),
+
+    // Indicator operations
+    addIndicator: (programId, data) => api.post(`/programs/${programId}/indicators`, data),
+    updateIndicator: (indicatorId, data) => api.put(`/programs/indicators/${indicatorId}`, data),
+    deleteIndicator: (indicatorId) => api.delete(`/programs/indicators/${indicatorId}`)
+};
+
+// =====================================================
 // AUTH API
 // =====================================================
 

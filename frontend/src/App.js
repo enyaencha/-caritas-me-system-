@@ -6,6 +6,9 @@ import Settings from './pages/Settings';
 import BeneficiaryList from './pages/BeneficiaryList';
 import BeneficiaryForm from './pages/BeneficiaryForm';
 import BeneficiaryDetails from './pages/BeneficiaryDetails';
+import ProgramList from './pages/ProgramList';
+import ProgramForm from './pages/ProgramForm';
+import ProgramDetails from './pages/ProgramDetails';
 import './styles/App.css';
 
 // Protected Route Component
@@ -75,15 +78,41 @@ function App() {
                     }
                 />
 
-                {/* Placeholder routes for other pages */}
+                {/* Program Routes */}
                 <Route
                     path="/programs"
                     element={
                         <ProtectedRoute>
-                            <ComingSoon page="Programs" />
+                            <ProgramList />
                         </ProtectedRoute>
                     }
                 />
+                <Route
+                    path="/programs/create"
+                    element={
+                        <ProtectedRoute>
+                            <ProgramForm />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/programs/edit/:id"
+                    element={
+                        <ProtectedRoute>
+                            <ProgramForm />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/programs/:id"
+                    element={
+                        <ProtectedRoute>
+                            <ProgramDetails />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Placeholder routes for other pages */}
                 <Route
                     path="/activities"
                     element={
