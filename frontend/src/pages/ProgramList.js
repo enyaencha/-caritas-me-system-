@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import CategoryManager from '../components/CategoryManager';
 import { programAPI } from '../services/api';
 import '../styles/App.css';
 
@@ -131,12 +132,18 @@ const ProgramList = () => {
                             <h1>Programs</h1>
                             <p>Manage and view all programs</p>
                         </div>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => navigate('/programs/create')}
-                        >
-                            + Create New Program
-                        </button>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <CategoryManager
+                                categories={categories}
+                                onCategoryAdded={fetchCategories}
+                            />
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => navigate('/programs/create')}
+                            >
+                                + Create New Program
+                            </button>
+                        </div>
                     </div>
 
                     {/* Statistics Cards */}
