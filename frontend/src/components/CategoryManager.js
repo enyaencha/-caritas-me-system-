@@ -10,7 +10,7 @@ const CategoryManager = ({ categories, onCategoryAdded }) => {
     const [formData, setFormData] = useState({
         category_name: '',
         description: '',
-        color_code: '#3B82F6'
+        color: '#3B82F6'
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -57,7 +57,7 @@ const CategoryManager = ({ categories, onCategoryAdded }) => {
                 setFormData({
                     category_name: '',
                     description: '',
-                    color_code: '#3B82F6'
+                    color: '#3B82F6'
                 });
                 setShowModal(false);
 
@@ -146,16 +146,16 @@ const CategoryManager = ({ categories, onCategoryAdded }) => {
                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                         <input
                                             type="color"
-                                            name="color_code"
+                                            name="color"
                                             className="form-control"
-                                            value={formData.color_code}
+                                            value={formData.color}
                                             onChange={handleInputChange}
                                             style={{ width: '60px', height: '40px' }}
                                         />
                                         <input
                                             type="text"
-                                            value={formData.color_code}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, color_code: e.target.value }))}
+                                            value={formData.color}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
                                             className="form-control"
                                             placeholder="#3B82F6"
                                             pattern="^#[0-9A-Fa-f]{6}$"
@@ -177,7 +177,7 @@ const CategoryManager = ({ categories, onCategoryAdded }) => {
                                                         width: '12px',
                                                         height: '12px',
                                                         borderRadius: '50%',
-                                                        backgroundColor: cat.color_code,
+                                                        backgroundColor: cat.color,
                                                         marginRight: '8px'
                                                     }}
                                                 />

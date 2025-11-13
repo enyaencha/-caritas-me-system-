@@ -247,8 +247,8 @@ const ProgramDetails = () => {
                                         display: 'inline-block',
                                         padding: '6px 12px',
                                         borderRadius: '4px',
-                                        backgroundColor: program.category?.color_code + '20',
-                                        color: program.category?.color_code,
+                                        backgroundColor: program.category?.color + '20',
+                                        color: program.category?.color,
                                         fontWeight: '600'
                                     }}>
                                         {program.category?.category_name || 'N/A'}
