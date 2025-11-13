@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import BeneficiaryList from './pages/BeneficiaryList';
+import BeneficiaryForm from './pages/BeneficiaryForm';
+import BeneficiaryDetails from './pages/BeneficiaryDetails';
 import './styles/App.css';
 
 // Protected Route Component
@@ -38,15 +41,41 @@ function App() {
                     }
                 />
 
-                {/* Placeholder routes for other pages */}
+                {/* Beneficiary Routes */}
                 <Route
                     path="/beneficiaries"
                     element={
                         <ProtectedRoute>
-                            <ComingSoon page="Beneficiaries" />
+                            <BeneficiaryList />
                         </ProtectedRoute>
                     }
                 />
+                <Route
+                    path="/beneficiaries/create"
+                    element={
+                        <ProtectedRoute>
+                            <BeneficiaryForm />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/beneficiaries/edit/:id"
+                    element={
+                        <ProtectedRoute>
+                            <BeneficiaryForm />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/beneficiaries/:id"
+                    element={
+                        <ProtectedRoute>
+                            <BeneficiaryDetails />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Placeholder routes for other pages */}
                 <Route
                     path="/programs"
                     element={
