@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import DataEntry from './pages/DataEntry';
 import BeneficiaryList from './pages/BeneficiaryList';
 import BeneficiaryForm from './pages/BeneficiaryForm';
 import BeneficiaryDetails from './pages/BeneficiaryDetails';
@@ -40,6 +41,16 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <Settings />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Data Entry Page */}
+                <Route
+                    path="/data-entry"
+                    element={
+                        <ProtectedRoute>
+                            <DataEntry />
                         </ProtectedRoute>
                     }
                 />
