@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
     getAllPrograms,
     getProgramById,
@@ -25,7 +25,7 @@ router.get('/stats/summary', protect, getProgramStats);
 // Category routes
 router.route('/categories')
     .get(protect, getAllCategories)
-    .post(protect, createCategory);
+    .post(protect, authorize('Admin'), createCategory);
 
 // Indicator routes
 router.route('/:id/indicators')

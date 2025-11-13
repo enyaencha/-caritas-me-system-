@@ -484,7 +484,7 @@ exports.getAllCategories = async (req, res) => {
 /**
  * @desc    Create program category
  * @route   POST /api/v1/programs/categories
- * @access  Private
+ * @access  Private (Admin only)
  */
 exports.createCategory = async (req, res) => {
     try {
