@@ -26,18 +26,8 @@ const ProgramForm = () => {
         description: '',
         start_date: '',
         end_date: '',
-        budget: '',
-        funding_source: '',
-        program_manager: '',
-        status: 'Planning'
-    });
-
-        description: '',
-        category_id: '',
         funding_source: '',
         total_budget: '',
-        start_date: '',
-        end_date: '',
         status: 'Planning',
         target_beneficiaries: '',
         location: '',
@@ -47,12 +37,7 @@ const ProgramForm = () => {
         notes: ''
     });
 
-    // Fetch categories
-    useEffect(() => {
-        fetchCategories();
-    }, []);
-
-    // Fetch program data if editing
+    // Fetch categories and program data
     useEffect(() => {
         if (isEditMode) {
             fetchProgram();
@@ -60,8 +45,6 @@ const ProgramForm = () => {
             generateProgramCode();
         }
         fetchCategories();
-    }, [id]);
-
     }, [id]);
 
     const fetchCategories = async () => {
