@@ -168,9 +168,6 @@ exports.getProgramById = async (req, res) => {
                         : 0
                 }
             }
-        res.json({
-            success: true,
-            data: program
         });
 
     } catch (error) {
@@ -197,27 +194,12 @@ exports.createProgram = async (req, res) => {
             description,
             start_date,
             end_date,
-            budget,
+            total_budget,
             funding_source,
             program_manager,
-            status
-        } = req.body;
-
-        // Validate required fields
-        if (!program_code || !program_name || !start_date) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide program code, name, and start date'
-            description,
-            category_id,
-            funding_source,
-            total_budget,
-            start_date,
-            end_date,
             status,
             target_beneficiaries,
             location,
-            program_manager,
             contact_email,
             contact_phone,
             notes
@@ -372,12 +354,6 @@ exports.deleteProgram = async (req, res) => {
             });
         }
 
-        // Soft delete by setting status to Closed
-        await program.update({ status: 'Closed' });
-
-        res.json({
-            success: true,
-            message: 'Program closed successfully'
         // Soft delete by updating status
         await program.update({ status: 'Cancelled' });
 
@@ -408,14 +384,6 @@ exports.getProgramStats = async (req, res) => {
         const planning = await Program.count({ where: { status: 'Planning' } });
         const completed = await Program.count({ where: { status: 'Completed' } });
 
-        // Total budget across all programs
-        const [budgetStats] = await sequelize.query(`
-            SELECT
-                COALESCE(SUM(budget), 0) as total_budget,
-                COUNT(CASE WHEN status = 'Active' THEN 1 END) as active_programs
-            FROM programs
-        `, {
-            type: sequelize.QueryTypes.SELECT
         // Calculate total budget and spending
         const programs = await Program.findAll({
             attributes: ['total_budget', 'budget_utilized']
@@ -436,7 +404,6 @@ exports.getProgramStats = async (req, res) => {
                 active,
                 planning,
                 completed,
-                total_budget: parseFloat(budgetStats.total_budget) || 0
                 totalBudget,
                 totalSpent,
                 budgetRemaining: totalBudget - totalSpent
@@ -458,7 +425,6 @@ exports.getProgramStats = async (req, res) => {
  * @route   GET /api/v1/programs/categories
  * @access  Private
  */
-exports.getCategories = async (req, res) => {
 exports.getAllCategories = async (req, res) => {
     try {
         const categories = await ProgramCategory.findAll({
@@ -488,12 +454,6 @@ exports.getAllCategories = async (req, res) => {
  */
 exports.createCategory = async (req, res) => {
     try {
-        const { category_code, category_name, description, icon, color } = req.body;
-
-        if (!category_code || !category_name) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide category code and name'
         const { category_name, description, color_code } = req.body;
 
         if (!category_name) {
@@ -504,11 +464,6 @@ exports.createCategory = async (req, res) => {
         }
 
         const category = await ProgramCategory.create({
-            category_code,
-            category_name,
-            description,
-            icon,
-            color
             category_name,
             description,
             color_code: color_code || '#3B82F6'
