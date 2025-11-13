@@ -32,16 +32,22 @@ ALTER TABLE programs ADD COLUMN IF NOT EXISTS program_manager_name VARCHAR(100);
 -- Copy data from old program_manager if it exists and has user data
 -- (Skip this in initial setup as there's no data yet)
 
--- Update status ENUM to match model
+-- Update status ENUM to match model (including approval statuses)
 ALTER TABLE programs DROP CONSTRAINT IF EXISTS programs_status_check;
 ALTER TABLE programs ADD CONSTRAINT programs_status_check
-  CHECK (status IN ('Planning', 'Active', 'Completed', 'On Hold', 'Cancelled'));
+  CHECK (status IN ('Planning', 'Active', 'Completed', 'On Hold', 'Cancelled', 'Draft', 'Pending Approval', 'Rejected'));
 
--- If there was an old budget column, we can migrate the data
-UPDATE programs SET total_budget = budget WHERE budget IS NOT NULL AND total_budget = 0;
-
--- Remove old budget column if it exists
-ALTER TABLE programs DROP COLUMN IF EXISTS budget;
+-- If there was an old budget column, migrate the data
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'programs' AND column_name = 'budget'
+  ) THEN
+    UPDATE programs SET total_budget = budget WHERE budget IS NOT NULL AND total_budget = 0;
+    ALTER TABLE programs DROP COLUMN budget;
+  END IF;
+END $$;
 
 -- Rename program_manager column (from UUID to name field)
 DO $$
