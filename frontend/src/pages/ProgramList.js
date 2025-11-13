@@ -1,123 +1,99 @@
 // =====================================================
-// PROGRAM LIST PAGE
+// PROGRAM MODULES OVERVIEW
 // =====================================================
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import CategoryManager from '../components/CategoryManager';
 import { programAPI } from '../services/api';
 import '../styles/App.css';
 
 const ProgramList = () => {
     const navigate = useNavigate();
-    const [programs, setPrograms] = useState([]);
+    const [categoryStats, setCategoryStats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Pagination and filters
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [search, setSearch] = useState('');
+    // Filters
     const [statusFilter, setStatusFilter] = useState('');
-    const [categoryFilter, setCategoryFilter] = useState('');
-    const [stats, setStats] = useState(null);
-    const [categories, setCategories] = useState([]);
+    const [sortBy, setSortBy] = useState('beneficiaries');
+    const [yearFilter, setYearFilter] = useState('');
 
-    // Fetch programs
-    const fetchPrograms = async () => {
+    // Fetch category statistics
+    const fetchCategoryStats = async () => {
         try {
             setLoading(true);
-            const params = {
-                page,
-                limit: 10,
-                search,
-                status: statusFilter,
-                category: categoryFilter
-            };
+            const params = {};
+            if (statusFilter) params.status = statusFilter;
+            if (yearFilter) params.year = yearFilter;
 
-            const response = await programAPI.getAll(params);
+            const response = await programAPI.getCategoryStats(params);
 
             if (response.data.success) {
-                setPrograms(response.data.data.programs);
-                setTotalPages(response.data.data.pagination.pages);
+                let stats = response.data.data;
+
+                // Apply sorting
+                if (sortBy === 'beneficiaries') {
+                    stats = stats.sort((a, b) => b.total_beneficiaries - a.total_beneficiaries);
+                } else if (sortBy === 'latest') {
+                    // Keep original order or sort by category name
+                    stats = stats.sort((a, b) => a.category_name.localeCompare(b.category_name));
+                } else if (sortBy === 'alphabetical') {
+                    stats = stats.sort((a, b) => a.category_name.localeCompare(b.category_name));
+                }
+
+                setCategoryStats(stats);
             }
             setError('');
         } catch (err) {
-            setError('Failed to load programs');
-            console.error('Error fetching programs:', err);
+            setError('Failed to load program statistics');
+            console.error('Error fetching category stats:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    // Fetch statistics
-    const fetchStats = async () => {
-        try {
-            const response = await programAPI.getStats();
-            if (response.data.success) {
-                setStats(response.data.data);
-            }
-        } catch (err) {
-            console.error('Error fetching stats:', err);
-        }
-    };
-
-    // Fetch categories
-    const fetchCategories = async () => {
-        try {
-            const response = await programAPI.getCategories();
-            if (response.data.success) {
-                setCategories(response.data.data);
-            }
-        } catch (err) {
-            console.error('Error fetching categories:', err);
-        }
-    };
-
     useEffect(() => {
-        fetchPrograms();
-    }, [page, search, statusFilter, categoryFilter]);
-
-    useEffect(() => {
-        fetchStats();
-        fetchCategories();
-    }, []);
-
-    // Handle search
-    const handleSearch = (e) => {
-        setSearch(e.target.value);
-        setPage(1);
-    };
-
-    // Handle delete
-    const handleDelete = async (id, name) => {
-        if (window.confirm(`Are you sure you want to cancel program "${name}"?`)) {
-            try {
-                await programAPI.delete(id);
-                fetchPrograms();
-                fetchStats();
-            } catch (err) {
-                alert('Failed to cancel program');
-                console.error('Error cancelling program:', err);
-            }
-        }
-    };
-
-    // Calculate budget utilization percentage
-    const getBudgetPercentage = (program) => {
-        if (!program.total_budget || program.total_budget === 0) return 0;
-        return ((program.budget_utilized / program.total_budget) * 100).toFixed(1);
-    };
+        fetchCategoryStats();
+    }, [statusFilter, sortBy, yearFilter]);
 
     // Format currency
     const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('en-KE', {
             style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0
+            currency: 'KES',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         }).format(amount || 0);
+    };
+
+    // Format number
+    const formatNumber = (num) => {
+        return new Intl.NumberFormat('en-US').format(num || 0);
+    };
+
+    // Get icon emoji for category
+    const getCategoryIcon = (categoryName) => {
+        const icons = {
+            'Food, Water & Environment': '🌾',
+            'Food & Environment': '🌾',
+            'Socio-Economic Empowerment': '💼',
+            'Socio-Economic': '💼',
+            'Gender, Youth & Peace': '👥',
+            'Gender & Youth': '👥',
+            'Relief & Charitable Services': '🏥',
+            'Relief Services': '🏥',
+            'Capacity Building': '🎓',
+            'Peace Building & Cohesion': '🕊️'
+        };
+        return icons[categoryName] || '📁';
+    };
+
+    // Handle card click - navigate to program detail view for that category
+    const handleCardClick = (category) => {
+        // For now, navigate to a filtered programs list or category detail
+        navigate(`/programs/category/${category.category_id}`);
     };
 
     return (
@@ -129,108 +105,54 @@ const ProgramList = () => {
                     {/* Page Header */}
                     <div className="page-header">
                         <div>
-                            <h1>Programs</h1>
-                            <p>Manage and view all programs</p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <CategoryManager
-                                categories={categories}
-                                onCategoryAdded={fetchCategories}
-                            />
-                            <button
-                                className="btn btn-primary"
-                                onClick={() => navigate('/programs/create')}
-                            >
-                                + Create New Program
-                            </button>
+                            <h1>Program Modules</h1>
+                            <p className="breadcrumb">Home &gt; Programs</p>
                         </div>
                     </div>
 
-                    {/* Statistics Cards */}
-                    {stats && (
-                        <div className="stats-grid" style={{ marginBottom: '20px' }}>
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ background: '#3498db' }}>📋</div>
-                                <div className="stat-details">
-                                    <div className="stat-label">Total Programs</div>
-                                    <div className="stat-value">{stats.total}</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ background: '#2ecc71' }}>✓</div>
-                                <div className="stat-details">
-                                    <div className="stat-label">Active</div>
-                                    <div className="stat-value">{stats.active}</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ background: '#f39c12' }}>⏳</div>
-                                <div className="stat-details">
-                                    <div className="stat-label">Planning</div>
-                                    <div className="stat-value">{stats.planning}</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ background: '#9b59b6' }}>💰</div>
-                                <div className="stat-details">
-                                    <div className="stat-label">Total Budget</div>
-                                    <div className="stat-value">{formatCurrency(stats.totalBudget)}</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Filters Section */}
-                    <div className="card" style={{ marginBottom: '20px' }}>
-                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <div style={{ flex: 1, minWidth: '250px' }}>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    placeholder="Search by name, code, or location..."
-                                    value={search}
-                                    onChange={handleSearch}
-                                />
-                            </div>
-                            <div>
+                    {/* Filters Panel */}
+                    <div className="filters-panel">
+                        <div className="filter-group">
+                            <div className="form-field">
+                                <label>Filter by Status</label>
                                 <select
-                                    className="form-control"
                                     value={statusFilter}
-                                    onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="form-control"
                                 >
-                                    <option value="">All Status</option>
-                                    <option value="Planning">Planning</option>
+                                    <option value="">All Programs</option>
                                     <option value="Active">Active</option>
                                     <option value="Completed">Completed</option>
+                                    <option value="Planning">Planning</option>
                                     <option value="On Hold">On Hold</option>
-                                    <option value="Cancelled">Cancelled</option>
                                 </select>
                             </div>
-                            <div>
+                            <div className="form-field">
+                                <label>Sort by</label>
                                 <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
                                     className="form-control"
-                                    value={categoryFilter}
-                                    onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
                                 >
-                                    <option value="">All Categories</option>
-                                    {categories.map(cat => (
-                                        <option key={cat.category_id} value={cat.category_id}>
-                                            {cat.category_name}
-                                        </option>
-                                    ))}
+                                    <option value="beneficiaries">Most Beneficiaries</option>
+                                    <option value="latest">Latest</option>
+                                    <option value="alphabetical">Alphabetical</option>
                                 </select>
                             </div>
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => {
-                                    setSearch('');
-                                    setStatusFilter('');
-                                    setCategoryFilter('');
-                                    setPage(1);
-                                }}
-                            >
-                                Clear Filters
-                            </button>
+                            <div className="form-field">
+                                <label>Year</label>
+                                <select
+                                    value={yearFilter}
+                                    onChange={(e) => setYearFilter(e.target.value)}
+                                    className="form-control"
+                                >
+                                    <option value="">All Years</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2022">2022</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -241,168 +163,76 @@ const ProgramList = () => {
                         </div>
                     )}
 
-                    {/* Programs Table */}
-                    <div className="card">
-                        {loading ? (
-                            <div style={{ textAlign: 'center', padding: '40px' }}>
-                                <div className="spinner"></div>
-                                <p>Loading programs...</p>
-                            </div>
-                        ) : programs.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '10px' }}>📋</div>
-                                <p>No programs found</p>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={() => navigate('/programs/create')}
-                                    style={{ marginTop: '10px' }}
-                                >
-                                    Create First Program
-                                </button>
-                            </div>
-                        ) : (
-                            <>
-                                <table className="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Code</th>
-                                            <th>Program Name</th>
-                                            <th>Category</th>
-                                            <th>Budget</th>
-                                            <th>Utilization</th>
-                                            <th>Duration</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {programs.map((program) => (
-                                            <tr key={program.program_id}>
-                                                <td><strong>{program.program_code}</strong></td>
-                                                <td>
-                                                    <div style={{ fontWeight: '600' }}>{program.program_name}</div>
-                                                    <small style={{ color: '#7f8c8d' }}>
-                                                        {program.location || 'N/A'}
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    {program.category && (
-                                                        <span
-                                                            style={{
-                                                                display: 'inline-block',
-                                                                padding: '4px 8px',
-                                                                borderRadius: '4px',
-                                                                backgroundColor: program.category.color + '20',
-                                                                color: program.category.color,
-                                                                fontSize: '12px',
-                                                                fontWeight: '600'
-                                                            }}
-                                                        >
-                                                            {program.category.category_name}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <div style={{ fontWeight: '600' }}>
-                                                        {formatCurrency(program.total_budget)}
-                                                    </div>
-                                                    <small style={{ color: '#7f8c8d' }}>
-                                                        Spent: {formatCurrency(program.budget_utilized)}
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <div style={{ width: '100px' }}>
-                                                        <div style={{
-                                                            width: '100%',
-                                                            backgroundColor: '#ecf0f1',
-                                                            borderRadius: '4px',
-                                                            height: '8px',
-                                                            overflow: 'hidden'
-                                                        }}>
-                                                            <div style={{
-                                                                width: `${Math.min(getBudgetPercentage(program), 100)}%`,
-                                                                backgroundColor: getBudgetPercentage(program) > 90 ? '#e74c3c' :
-                                                                    getBudgetPercentage(program) > 75 ? '#f39c12' : '#2ecc71',
-                                                                height: '100%'
-                                                            }}></div>
-                                                        </div>
-                                                        <small style={{ fontSize: '11px', color: '#7f8c8d' }}>
-                                                            {getBudgetPercentage(program)}%
-                                                        </small>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div>{new Date(program.start_date).toLocaleDateString()}</div>
-                                                    <small style={{ color: '#7f8c8d' }}>
-                                                        to {program.end_date ? new Date(program.end_date).toLocaleDateString() : 'Ongoing'}
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <span className={`badge ${
-                                                        program.status === 'Active' ? 'badge-success' :
-                                                        program.status === 'Planning' ? 'badge-info' :
-                                                        program.status === 'Completed' ? 'badge-secondary' :
-                                                        program.status === 'On Hold' ? 'badge-warning' :
-                                                        'badge-danger'
-                                                    }`}>
-                                                        {program.status}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div style={{ display: 'flex', gap: '5px' }}>
-                                                        <button
-                                                            className="btn btn-sm btn-info"
-                                                            onClick={() => navigate(`/programs/${program.program_id}`)}
-                                                            title="View Details"
-                                                        >
-                                                            👁️
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-sm btn-primary"
-                                                            onClick={() => navigate(`/programs/edit/${program.program_id}`)}
-                                                            title="Edit"
-                                                        >
-                                                            ✏️
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-sm btn-danger"
-                                                            onClick={() => handleDelete(program.program_id, program.program_name)}
-                                                            title="Cancel Program"
-                                                        >
-                                                            🗑️
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-
-                                {/* Pagination */}
-                                {totalPages > 1 && (
-                                    <div className="pagination">
-                                        <button
-                                            className="btn btn-secondary"
-                                            disabled={page === 1}
-                                            onClick={() => setPage(page - 1)}
-                                        >
-                                            Previous
-                                        </button>
-                                        <span style={{ padding: '0 20px' }}>
-                                            Page {page} of {totalPages}
-                                        </span>
-                                        <button
-                                            className="btn btn-secondary"
-                                            disabled={page === totalPages}
-                                            onClick={() => setPage(page + 1)}
-                                        >
-                                            Next
-                                        </button>
+                    {/* Loading State */}
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '50px' }}>
+                            <div className="spinner"></div>
+                            <p>Loading program modules...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Program Category Cards Grid */}
+                            <div className="program-grid">
+                                {categoryStats.length === 0 ? (
+                                    <div className="card" style={{ padding: '40px', textAlign: 'center', gridColumn: '1 / -1' }}>
+                                        <p style={{ color: '#7f8c8d' }}>No program modules found matching the selected filters.</p>
                                     </div>
+                                ) : (
+                                    categoryStats.map((category) => (
+                                        <div
+                                            key={category.category_id}
+                                            className="program-card"
+                                            onClick={() => handleCardClick(category)}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            {/* Icon */}
+                                            <div
+                                                className="program-icon"
+                                                style={{
+                                                    backgroundColor: category.color || '#3498db',
+                                                    color: 'white'
+                                                }}
+                                            >
+                                                {getCategoryIcon(category.category_name)}
+                                            </div>
+
+                                            {/* Title */}
+                                            <div className="program-title">
+                                                {category.category_name}
+                                            </div>
+
+                                            {/* Description */}
+                                            <div className="program-description">
+                                                {category.description || 'No description available'}
+                                            </div>
+
+                                            {/* Stats */}
+                                            <div className="program-stats">
+                                                <div className="program-stat">
+                                                    <div className="program-stat-value">
+                                                        {formatNumber(category.total_beneficiaries)}
+                                                    </div>
+                                                    <div className="program-stat-label">Beneficiaries</div>
+                                                </div>
+                                                <div className="program-stat">
+                                                    <div className="program-stat-value">
+                                                        {category.total_programs}
+                                                    </div>
+                                                    <div className="program-stat-label">Projects</div>
+                                                </div>
+                                                <div className="program-stat">
+                                                    <div className="program-stat-value">
+                                                        {formatCurrency(category.total_budget).replace('KES', 'KES ')}
+                                                    </div>
+                                                    <div className="program-stat-label">Budget</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
                                 )}
-                            </>
-                        )}
-                    </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
